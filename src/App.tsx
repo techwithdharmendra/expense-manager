@@ -13,7 +13,6 @@ import {
 } from 'lucide-react';
 import { db, initDefaultCategories, initDefaultSettings, initDefaultAccounts } from './db';
 import { cn } from './lib/utils';
-import { processRecurringTransactions } from './services/recurringService';
 import PinLock from './components/PinLock';
 import { useLiveQuery } from 'dexie-react-hooks';
 
@@ -31,25 +30,25 @@ import { Toaster } from 'sonner';
 
 function BottomNav() {
   return (
-    <nav className="absolute bottom-0 left-0 right-0 h-16 bg-white border-t border-gray-100 flex items-center justify-around px-1 z-40 pb-safe">
-      <NavLink to="/" className={({ isActive }) => cn("flex flex-col items-center justify-center space-y-1 flex-1 h-full text-[10px] uppercase font-bold transition-colors", isActive ? "text-indigo-600" : "text-gray-400")}>
+    <nav className="h-16 bg-white border-t border-gray-100 flex items-center justify-around px-2 z-40 pb-safe shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.05)]">
+      <NavLink to="/" className={({ isActive }) => cn("flex flex-col items-center justify-center space-y-0.5 flex-1 h-full text-[10px] uppercase font-bold transition-all duration-300", isActive ? "text-indigo-600 scale-105" : "text-gray-400 hover:text-gray-600")}>
         <LayoutDashboard className="w-5 h-5" />
         <span>Home</span>
       </NavLink>
-      <NavLink to="/analytics" className={({ isActive }) => cn("flex flex-col items-center justify-center space-y-1 flex-1 h-full text-[10px] uppercase font-bold transition-colors", isActive ? "text-indigo-600" : "text-gray-400")}>
+      <NavLink to="/analytics" className={({ isActive }) => cn("flex flex-col items-center justify-center space-y-0.5 flex-1 h-full text-[10px] uppercase font-bold transition-all duration-300", isActive ? "text-indigo-600 scale-105" : "text-gray-400 hover:text-gray-600")}>
         <PieChartIcon className="w-5 h-5" />
         <span>Stats</span>
       </NavLink>
-      <div className="relative -top-6 flex-shrink-0">
-        <NavLink to="/add" className="w-14 h-14 bg-indigo-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-indigo-100 active:scale-95 transition-transform ring-4 ring-white">
-          <PlusIcon className="w-8 h-8" />
+      <div className="relative -top-4 flex-shrink-0 px-2">
+        <NavLink to="/add" className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-indigo-200 active:scale-90 hover:scale-105 transition-all ring-4 ring-white">
+          <PlusIcon className="w-7 h-7" />
         </NavLink>
       </div>
-      <NavLink to="/transactions" className={({ isActive }) => cn("flex flex-col items-center justify-center space-y-1 flex-1 h-full text-[10px] uppercase font-bold transition-colors", isActive ? "text-indigo-600" : "text-gray-400")}>
+      <NavLink to="/transactions" className={({ isActive }) => cn("flex flex-col items-center justify-center space-y-0.5 flex-1 h-full text-[10px] uppercase font-bold transition-all duration-300", isActive ? "text-indigo-600 scale-105" : "text-gray-400 hover:text-gray-600")}>
         <HistoryIcon className="w-5 h-5" />
         <span>History</span>
       </NavLink>
-      <NavLink to="/settings" className={({ isActive }) => cn("flex flex-col items-center justify-center space-y-1 flex-1 h-full text-[10px] uppercase font-bold transition-colors", isActive ? "text-indigo-600" : "text-gray-400")}>
+      <NavLink to="/settings" className={({ isActive }) => cn("flex flex-col items-center justify-center space-y-0.5 flex-1 h-full text-[10px] uppercase font-bold transition-all duration-300", isActive ? "text-indigo-600 scale-105" : "text-gray-400 hover:text-gray-600")}>
         <SettingsIcon className="w-5 h-5" />
         <span>Settings</span>
       </NavLink>
@@ -62,11 +61,11 @@ function PageWrapper({ children }: { children: React.ReactNode }) {
   return (
     <motion.div
       key={location.pathname}
-      initial={{ opacity: 0, scale: 0.98 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.98 }}
-      transition={{ duration: 0.2, ease: 'easeOut' }}
-      className="pb-24 pt-4 px-4 min-h-screen bg-transparent"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.3, ease: 'easeOut' }}
+      className="pb-4 pt-3 px-4 md:px-6 min-h-full bg-transparent"
     >
       {children}
     </motion.div>
@@ -84,7 +83,6 @@ export default function App() {
       await initDefaultCategories();
       await initDefaultAccounts();
       await initDefaultSettings();
-      await processRecurringTransactions();
       setTimeout(() => setInitialized(true), 1200);
     };
     setup();
@@ -95,6 +93,19 @@ export default function App() {
       setIsLocked(true);
     }
   }, [initialized, settings?.pinLock]);
+
+  useEffect(() => {
+    if (initialized && !isLocked) {
+      const checkData = async () => {
+        const catCount = await db.categories.count();
+        const accCount = await db.accounts.count();
+        if (catCount === 0 || accCount === 0) {
+           await Promise.all([initDefaultCategories(), initDefaultAccounts()]);
+        }
+      };
+      checkData();
+    }
+  }, [initialized, isLocked]);
 
   if (!initialized) return (
     <div className="h-screen w-full flex flex-col items-center justify-center bg-indigo-600 text-white overflow-hidden">
@@ -129,10 +140,10 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-0 sm:p-4 font-sans">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-0 sm:p-4 font-sans selection:bg-indigo-100">
         <Toaster position="top-center" richColors theme="light" />
-        <div className="w-full max-w-md bg-white min-h-[100dvh] sm:min-h-[850px] sm:max-h-[850px] shadow-2xl relative overflow-hidden sm:rounded-[3rem] ring-1 ring-gray-100 flex flex-col">
-          <div className="flex-1 overflow-y-auto no-scrollbar bg-gray-50/30">
+        <div className="w-full max-w-md bg-white h-[100dvh] sm:min-h-[850px] sm:max-h-[850px] shadow-2xl relative overflow-hidden sm:rounded-[3rem] ring-1 ring-gray-100 flex flex-col">
+          <div className="flex-1 overflow-y-auto no-scrollbar bg-gray-50/10">
             <AnimatePresence mode="wait">
               <Routes>
                 <Route path="/" element={<PageWrapper><Dashboard /></PageWrapper>} />

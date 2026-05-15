@@ -12,11 +12,11 @@ import {
   TrendingUp,
   CircleCheck,
   ChevronRight,
-  ScanLine,
-  Mic,
   ArrowRight,
   PieChart as PieChartIcon,
-  BarChart2
+  BarChart2,
+  CreditCard,
+  LayoutGrid
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
@@ -38,7 +38,9 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [chartType, setChartType] = useState<'expense' | 'income'>('expense');
   const transactions = useLiveQuery(() => 
-    db.transactions.orderBy('date').reverse().limit(10).toArray()
+    db.transactions.toArray().then(items => 
+      items.sort((a, b) => b.date.getTime() - a.date.getTime() || (Number(b.id) - Number(a.id))).slice(0, 10)
+    )
   );
   
   const allTransactions = useLiveQuery(() => db.transactions.toArray());
@@ -99,17 +101,19 @@ export default function Dashboard() {
     if (!allTransactions || !categories) return [];
     
     const filtered = allTransactions.filter(t => t.type === chartType);
-    const stats: { [key: string]: { name: string, value: number, color: string, icon: string } } = {};
+    const stats: { [key: string]: { name: string, value: number, color: string, icon: string, id: string | number } } = {};
     
     filtered.forEach(t => {
       const cat = getCategory(t.categoryId);
       const catName = cat?.name || 'Other';
+      const catId = cat?.id || 'unknown';
       if (!stats[catName]) {
         stats[catName] = { 
           name: catName, 
           value: 0, 
           color: cat?.color || '#CBD5E1',
-          icon: cat?.icon || 'Tag'
+          icon: cat?.icon || 'Tag',
+          id: catId
         };
       }
       stats[catName].value += t.amount;
@@ -121,20 +125,20 @@ export default function Dashboard() {
   const totalType = categoryChartData.reduce((sum, item) => sum + item.value, 0);
 
   return (
-    <div className="space-y-6 pb-4">
+    <div className="space-y-4 pb-4 px-1">
       {/* Header */}
       <div className="flex items-center justify-between px-1">
         <div>
-          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] mb-1">Morning,</p>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight leading-none">Wallet Tracker</h1>
+          <p className="text-[9px] text-gray-400 font-bold uppercase tracking-[0.2em] mb-0.5">Morning,</p>
+          <h1 className="text-lg font-bold text-gray-900 tracking-tight leading-none">Wallet Tracker</h1>
         </div>
-        <div className="flex items-center space-x-2">
-          <Link to="/settings" className="w-10 h-10 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors">
-            <span className="text-xs font-bold">{settings?.currency || '$'}</span>
+        <div className="flex items-center space-x-1.5">
+          <Link to="/settings/accounts" className="w-8 h-8 rounded-xl bg-white shadow-sm flex items-center justify-center text-gray-400 hover:bg-gray-50 transition-colors border border-gray-100" title="Accounts">
+            <CreditCard className="w-4 h-4" />
           </Link>
-          <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-100">
-            <TrendingUp className="w-5 h-5" />
-          </div>
+          <Link to="/settings/categories" className="w-8 h-8 rounded-xl bg-white shadow-sm flex items-center justify-center text-gray-400 hover:bg-gray-50 transition-colors border border-gray-100" title="Categories">
+            <LayoutGrid className="w-4 h-4" />
+          </Link>
         </div>
       </div>
 
@@ -142,103 +146,98 @@ export default function Dashboard() {
       <motion.div 
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="relative bg-indigo-600 rounded-[2rem] p-8 text-white overflow-hidden shadow-2xl shadow-indigo-200"
+        className="relative bg-white rounded-2xl p-5 text-gray-900 overflow-hidden shadow-sm border border-gray-50"
       >
-        <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -mr-20 -mt-20 blur-2xl" />
-        <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full -ml-16 -mb-16 blur-xl" />
+        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 rounded-full -mr-12 -mt-12 blur-2xl" />
         
         <div className="relative z-10">
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <p className="text-indigo-100/60 text-[10px] font-bold uppercase tracking-widest mb-1">Total Balance</p>
-              <h2 className="text-4xl font-bold tracking-tight">
+              <p className="text-gray-400 text-[9px] font-bold uppercase tracking-widest mb-0.5">Total Balance</p>
+              <h2 className={cn(
+                "text-2xl font-bold tracking-tight",
+                stats.balance >= 0 ? "text-emerald-500" : "text-rose-500"
+              )}>
                 {settings?.hideBalance ? '••••••' : formatCurrency(stats.balance, settings?.currency)}
               </h2>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/10">
-               <Wallet className="w-6 h-6 text-white" />
+            <div className="w-9 h-9 rounded-2xl bg-indigo-50 flex items-center justify-center border border-indigo-100/50">
+               <Wallet className="w-4 h-4 text-indigo-600" />
             </div>
           </div>
           
-          <div className="grid grid-cols-2 gap-6">
-            <Link to="/analytics?tab=income" className="space-y-1 block active:scale-95 transition-transform">
-              <div className="flex items-center space-x-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <p className="text-[10px] text-indigo-100/60 font-bold uppercase tracking-wider">Income</p>
+          <div className="grid grid-cols-2 gap-4">
+            <Link to="/analytics?tab=income" className="flex items-center space-x-3 group active:scale-95 transition-transform">
+              <div className="w-1.5 h-6 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               </div>
-              <p className="font-bold text-lg">{formatCurrency(stats.income, settings?.currency)}</p>
+              <div className="min-w-0">
+                <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wider leading-none mb-1">Income</p>
+                <p className="font-bold text-sm text-emerald-500 truncate">{formatCurrency(stats.income, settings?.currency)}</p>
+              </div>
             </Link>
-            <Link to="/analytics?tab=expenses" className="space-y-1 block active:scale-95 transition-transform">
-              <div className="flex items-center space-x-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-rose-400" />
-                <p className="text-[10px] text-indigo-100/60 font-bold uppercase tracking-wider">Expense</p>
+            <Link to="/analytics?tab=expenses" className="flex items-center space-x-3 group active:scale-95 transition-transform">
+              <div className="w-1.5 h-6 rounded-full bg-rose-50 flex items-center justify-center shrink-0">
+                <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
               </div>
-              <p className="font-bold text-lg">{formatCurrency(stats.expense, settings?.currency)}</p>
+              <div className="min-w-0">
+                <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wider leading-none mb-1">Expense</p>
+                <p className="font-bold text-sm text-rose-500 truncate">{formatCurrency(stats.expense, settings?.currency)}</p>
+              </div>
             </Link>
           </div>
         </div>
       </motion.div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-3 gap-3 px-1">
-        <Link to="/add" className="bg-white p-4 rounded-3xl border border-gray-50 shadow-sm flex flex-col items-center space-y-2 active:scale-95 transition-transform group">
-          <div className="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 group-hover:bg-indigo-100 transition-colors">
-            <Plus className="w-5 h-5" />
-          </div>
-          <span className="text-[10px] font-bold text-gray-500 uppercase">Add</span>
-        </Link>
-        <Link to="/add?mode=scan" className="bg-white p-4 rounded-3xl border border-gray-50 shadow-sm flex flex-col items-center space-y-2 active:scale-95 transition-transform group">
-          <div className="w-10 h-10 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600 group-hover:bg-amber-100 transition-colors">
-            <ScanLine className="w-5 h-5" />
-          </div>
-          <span className="text-[10px] font-bold text-gray-500 uppercase">Scan</span>
-        </Link>
-        <Link to="/add?mode=voice" className="bg-white p-4 rounded-3xl border border-gray-50 shadow-sm flex flex-col items-center space-y-2 active:scale-95 transition-transform group">
-          <div className="w-10 h-10 rounded-2xl bg-violet-50 flex items-center justify-center text-violet-600 group-hover:bg-violet-100 transition-colors">
-            <Mic className="w-5 h-5" />
-          </div>
-          <span className="text-[10px] font-bold text-gray-500 uppercase">Voice</span>
-        </Link>
-      </div>
-
-      {/* Accounts Horizontal Scroll */}
-      <div className="space-y-3 px-1">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Your Accounts</h3>
-          <Link to="/settings/accounts" className="text-[10px] font-bold text-indigo-600 uppercase tracking-tight">Manage</Link>
+      {/* Accounts Section - Updated to match app theme with grid layout */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-50 space-y-5">
+        <div className="flex items-center justify-between px-1">
+          <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Accounts</h3>
+          <Link to="/settings/accounts" className="p-1 -mr-1 text-gray-400 hover:text-indigo-600 transition-colors">
+            <ChevronRight className="w-4 h-4" />
+          </Link>
         </div>
-        <div className="flex overflow-x-auto pb-4 gap-4 no-scrollbar -mx-1 px-1">
-          {accStats.map(acc => (
-            <Link 
-              key={acc.id} 
-              to={`/analytics?tab=combined&accountId=${acc.id}`}
-              className="flex-shrink-0 w-36 bg-white p-4 rounded-3xl border border-gray-50 shadow-sm space-y-3 active:scale-95 transition-transform"
-            >
-              <div 
-                className="w-10 h-10 rounded-2xl flex items-center justify-center text-white"
-                style={{ backgroundColor: acc.color }}
+        
+        <div className="grid grid-cols-2 gap-y-5 gap-x-4">
+          {accStats.map(acc => {
+            const IconComp = getIconByName(acc.icon);
+            return (
+              <Link 
+                key={acc.id} 
+                to={`/analytics?tab=combined&accountId=${acc.id}`}
+                className="flex items-center space-x-3 active:scale-95 transition-transform group"
               >
-                <Wallet className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="text-[10px] font-bold text-gray-400 uppercase truncate">{acc.name}</h4>
-                <p className="font-bold text-sm text-gray-900">{formatCurrency(acc.currentBalance, settings?.currency)}</p>
-              </div>
-            </Link>
-          ))}
+                <div 
+                  className="w-11 h-11 rounded-2xl flex items-center justify-center text-white shrink-0 shadow-sm"
+                  style={{ backgroundColor: acc.color }}
+                >
+                  <IconComp className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <h4 className="text-[10px] font-bold text-gray-400 uppercase truncate tracking-wider group-hover:text-indigo-600 transition-colors">{acc.name}</h4>
+                  <p className={cn(
+                    "font-bold text-sm leading-tight",
+                    acc.currentBalance >= 0 ? "text-emerald-500" : "text-rose-500"
+                  )}>
+                    {formatCurrency(acc.currentBalance, settings?.currency)}
+                  </p>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       </div>
 
 
       {/* Overview Charts */}
-      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-50 space-y-6">
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-50 space-y-5">
         <div className="flex items-center justify-between px-1">
-          <h3 className="text-sm font-bold text-gray-900 uppercase tracking-tight">Category Overview</h3>
+          <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Category Overview</h3>
           <div className="flex p-0.5 bg-gray-50 rounded-xl">
              <button 
               onClick={() => setChartType('expense')}
               className={cn(
-                "px-3 py-1.5 text-[8px] font-bold uppercase rounded-lg transition-all",
+                "px-2.5 py-1 text-[8px] font-bold uppercase rounded-lg transition-all",
                 chartType === 'expense' ? "bg-white text-rose-500 shadow-sm" : "text-gray-400"
               )}
              >
@@ -247,7 +246,7 @@ export default function Dashboard() {
              <button 
               onClick={() => setChartType('income')}
               className={cn(
-                "px-3 py-1.5 text-[8px] font-bold uppercase rounded-lg transition-all",
+                "px-2.5 py-1 text-[8px] font-bold uppercase rounded-lg transition-all",
                 chartType === 'income' ? "bg-white text-emerald-500 shadow-sm" : "text-gray-400"
               )}
              >
@@ -256,15 +255,15 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="relative h-56 flex items-center justify-center">
+        <div className="relative h-44 flex items-center justify-center">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={categoryChartData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
+                  innerRadius={50}
+                  outerRadius={65}
                   paddingAngle={5}
                   dataKey="value"
                 >
@@ -279,26 +278,30 @@ export default function Dashboard() {
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{chartType}</p>
-               <p className="text-lg font-bold text-gray-900 leading-tight">
+               <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{chartType}</p>
+               <p className="text-base font-bold text-gray-900 leading-tight">
                  {formatCurrency(totalType, settings?.currency)}
                </p>
             </div>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           {categoryChartData.slice(0, 3).map((item, i) => (
-            <div key={i} className="space-y-1.5">
+            <Link 
+              key={i} 
+              to={`/analytics?tab=${chartType === 'expense' ? 'expenses' : 'income'}&categoryId=${item.id}`}
+              className="block space-y-1 group active:scale-95 transition-transform"
+            >
                <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.color }} />
-                     <span className="text-[10px] font-bold text-gray-700 uppercase tracking-tight">{item.name}</span>
+                     <span className="text-[9px] font-bold text-gray-700 uppercase tracking-tight group-hover:text-indigo-600 transition-colors">{item.name}</span>
                   </div>
-                  <span className="text-[10px] font-bold text-gray-400">
+                  <span className="text-[8px] font-bold text-gray-400">
                     {((item.value / totalType) * 100).toFixed(0)}%
                   </span>
                </div>
-               <div className="w-full h-1.5 bg-gray-50 rounded-full overflow-hidden">
+               <div className="w-full h-1 bg-gray-50 rounded-full overflow-hidden">
                   <motion.div 
                     initial={{ width: 0 }}
                     animate={{ width: `${(item.value / totalType) * 100}%` }}
@@ -306,7 +309,7 @@ export default function Dashboard() {
                     style={{ backgroundColor: item.color }}
                   />
                </div>
-            </div>
+            </Link>
           ))}
           {categoryChartData.length > 3 && (
             <Link 
@@ -320,30 +323,35 @@ export default function Dashboard() {
       </div>
 
       {/* Recent Transactions */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div className="flex items-center justify-between px-1">
-          <h3 className="text-sm font-semibold text-gray-700">Recent Transactions</h3>
-          <Link to="/transactions" className="text-xs text-indigo-600 font-medium flex items-center">
+          <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Recent Transactions</h3>
+          <Link to="/transactions" className="text-[10px] font-bold text-indigo-600 uppercase tracking-tight flex items-center">
             See all <ChevronRight className="w-3 h-3 ml-0.5" />
           </Link>
         </div>
         
-        <div className="space-y-3">
+        <div className="space-y-2">
           {transactions?.length === 0 ? (
-            <div className="text-center py-10 bg-white rounded-3xl border border-dashed border-gray-200">
-               <p className="text-gray-400 text-sm">No transactions yet.</p>
-               <Link to="/add" className="text-xs text-indigo-600 font-bold mt-2 inline-block">Add your first expense</Link>
+            <div className="text-center py-6 bg-white rounded-2xl border border-dashed border-gray-100">
+               <p className="text-gray-400 text-xs">No transactions yet.</p>
+               <Link to="/add" className="text-[10px] text-indigo-600 font-bold mt-1 inline-block uppercase tracking-wider">Add first</Link>
             </div>
           ) : (
-            transactions?.map((t) => (
-              <TransactionItem 
-                key={t.id} 
-                transaction={t} 
-                category={getCategory(t.categoryId)}
-                account={getAccount(t.accountId)}
-                currency={settings?.currency}
-              />
-            ))
+            transactions?.slice(0, 5).map((t) => {
+              const cat = getCategory(t.categoryId);
+              const pCat = cat?.parentId ? getCategory(cat.parentId) : undefined;
+              return (
+                <TransactionItem 
+                  key={t.id} 
+                  transaction={t} 
+                  category={cat}
+                  parentCategory={pCat}
+                  account={getAccount(t.accountId)}
+                  currency={settings?.currency}
+                />
+              );
+            })
           )}
         </div>
       </div>

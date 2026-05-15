@@ -5,16 +5,12 @@ import { db, resetWithSampleData } from '../db';
 import { 
   Download, 
   Upload, 
-  Lock, 
   EyeOff, 
   Eye, 
   Coins, 
   Trash2, 
-  ShieldCheck,
   ChevronRight,
-  Database,
   Moon,
-  Sun,
   FileJson,
   FileSpreadsheet,
   Wallet,
@@ -172,22 +168,8 @@ export default function Settings() {
     }
   };
 
-  const setPin = async () => {
-    const pin = window.prompt('Enter a 4-digit PIN (or leave empty to disable):');
-    if (pin === null) return;
-    if (pin === '') {
-      await db.settings.update(1, { pinLock: undefined });
-      toast.success('PIN lock disabled');
-    } else if (pin.length === 4 && /^\d+$/.test(pin)) {
-      await db.settings.update(1, { pinLock: pin });
-      toast.success('PIN set successfully');
-    } else {
-      toast.error('Invalid PIN. Must be 4 digits.');
-    }
-  };
-
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-6">
       <ConfirmDialog 
         isOpen={confirmClear}
         title="Delete All Data?"
@@ -215,12 +197,14 @@ export default function Settings() {
         onCancel={() => setImportPending(null)}
       />
 
-      <h1 className="text-2xl font-bold text-gray-900 px-1 tracking-tight">Settings</h1>
+      <div className="flex items-center px-1">
+        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Settings</h1>
+      </div>
 
       {/* Management */}
       <section className="space-y-3">
         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Structure</h3>
-        <div className="bg-white rounded-3xl p-1 shadow-sm border border-gray-50 flex flex-col">
+        <div className="bg-white rounded-2xl p-1 shadow-sm border border-gray-50 flex flex-col">
           <Link to="/settings/accounts" className="flex items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50 transition-colors">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
@@ -252,7 +236,7 @@ export default function Settings() {
       {/* Account Preferences */}
       <section className="space-y-3">
         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Account Preferences</h3>
-        <div className="bg-white rounded-3xl p-1 shadow-sm border border-gray-50 flex flex-col">
+        <div className="bg-white rounded-2xl p-1 shadow-sm border border-gray-50 flex flex-col">
           <div className="flex items-center justify-between p-4 border-b border-gray-50">
             <div className="flex items-center space-x-3">
               <div className={cn("w-10 h-10 rounded-2xl flex items-center justify-center transition-colors", settings?.hideBalance ? "bg-red-50 text-red-600" : "bg-indigo-50 text-indigo-600")}>
@@ -309,42 +293,10 @@ export default function Settings() {
         </div>
       </section>
 
-      {/* Security */}
-      <section className="space-y-3">
-        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Security & Privacy</h3>
-        <div className="bg-white rounded-3xl p-1 shadow-sm border border-gray-50 flex flex-col">
-          <button 
-            onClick={setPin}
-            className="flex items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50"
-          >
-            <div className="flex items-center space-x-3">
-              <div className={cn("w-10 h-10 rounded-2xl flex items-center justify-center", settings?.pinLock ? "bg-green-50 text-green-600" : "bg-indigo-50 text-indigo-600")}>
-                <Lock className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-gray-700">PIN Lock</p>
-                <p className="text-[10px] text-gray-400 font-medium">{settings?.pinLock ? 'Enabled' : 'Disabled'}</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-               {settings?.pinLock && <span className="text-[10px] font-bold text-green-600 uppercase tracking-tighter">Locked</span>}
-               <ChevronRight className="w-5 h-5 text-gray-300" />
-            </div>
-          </button>
-          <div className="flex items-center justify-between p-4">
-            <div className="flex items-center space-x-3 text-gray-400">
-               <ShieldCheck className="w-5 h-5" />
-               <p className="text-sm font-bold">Fingerprint Biometric</p>
-            </div>
-            <span className="text-[10px] font-bold text-gray-300 uppercase tracking-tighter">Disabled</span>
-          </div>
-        </div>
-      </section>
-
       {/* Data Management */}
-      <section className="space-y-3 pb-12">
+      <section className="space-y-3">
         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Data & Backup</h3>
-        <div className="bg-white rounded-3xl p-1 shadow-sm border border-gray-50 flex flex-col">
+        <div className="bg-white rounded-2xl p-1 shadow-sm border border-gray-50 flex flex-col">
           <button onClick={exportData} className="flex items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">

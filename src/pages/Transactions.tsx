@@ -21,12 +21,19 @@ import { Transaction } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import TransactionItem from '../components/TransactionItem';
+import FilterSection, { FilterState } from '../components/FilterSection';
 
 export default function Transactions() {
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
-  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState<FilterState>({
+    type: 'all',
+    accountId: 'all',
+    categoryId: 'all',
+    dateRange: 'month',
+    startDate: '',
+    endDate: '',
+    searchTerm: ''
+  });
 
   const transactions = useLiveQuery(() => db.transactions.toArray());
   const categories = useLiveQuery(() => db.categories.toArray());
@@ -35,99 +42,111 @@ export default function Transactions() {
 
   const filteredTransactions = useMemo(() => {
     if (!transactions) return [];
-    let result = transactions.filter(t => 
-      t.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.note?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    let result = transactions.filter(t => {
+      // Type filter
+      if (filters.type !== 'all' && t.type !== filters.type) return false;
+      
+      // Account filter
+      if (filters.accountId !== 'all' && Number(t.accountId) !== Number(filters.accountId)) return false;
+      
+      // Category filter
+      if (filters.categoryId !== 'all') {
+        const catId = Number(t.categoryId);
+        const selectedId = Number(filters.categoryId);
+        const category = categories?.find(c => Number(c.id) === catId);
+        const isMatch = catId === selectedId || Number(category?.parentId) === selectedId;
+        if (!isMatch) return false;
+      }
+      
+      // Date filter
+      const tDate = new Date(t.date);
+      const now = new Date();
+      if (filters.dateRange === 'month') {
+        if (tDate.getMonth() !== now.getMonth() || tDate.getFullYear() !== now.getFullYear()) return false;
+      } else if (filters.dateRange === 'week') {
+        const weekAgo = new Date();
+        weekAgo.setDate(now.getDate() - 7);
+        if (tDate < weekAgo) return false;
+      } else if (filters.dateRange === 'year') {
+        if (tDate.getFullYear() !== now.getFullYear()) return false;
+      } else if (filters.dateRange === 'custom' && filters.startDate && filters.endDate) {
+        const start = new Date(filters.startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(filters.endDate);
+        end.setHours(23, 59, 59, 999);
+        if (tDate < start || tDate > end) return false;
+      }
 
-    if (filterType !== 'all') {
-      result = result.filter(t => t.type === filterType);
-    }
+      // Search filter
+      if (filters.searchTerm) {
+        const search = filters.searchTerm.toLowerCase();
+        const matchesTitle = t.title.toLowerCase().includes(search);
+        const matchesNote = t.note?.toLowerCase().includes(search);
+        if (!matchesTitle && !matchesNote) return false;
+      }
 
-    return result.sort((a, b) => b.date.getTime() - a.date.getTime());
-  }, [transactions, searchTerm, filterType]);
+      return true;
+    });
+
+    return result.sort((a, b) => b.date.getTime() - a.date.getTime() || (Number(b.id) - Number(a.id)));
+  }, [transactions, filters, categories]);
 
   const getCategory = (id: string | number) => categories?.find(c => String(c.id) === String(id));
   const getAccount = (id: string | number) => accounts?.find(a => String(a.id) === String(id));
 
-  // Group by month/year
+  // Group by specific date
   const groupedTransactions = useMemo(() => {
-    const groups: { [key: string]: Transaction[] } = {};
+    const groups: { date: string; items: Transaction[] }[] = [];
     filteredTransactions.forEach(t => {
       const dateObj = new Date(t.date);
-      const monthYear = dateObj.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-      if (!groups[monthYear]) groups[monthYear] = [];
-      groups[monthYear].push(t);
+      // Format: dd MMM yyyy
+      const dateStr = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      
+      const lastGroup = groups[groups.length - 1];
+      if (lastGroup && lastGroup.date === dateStr) {
+        lastGroup.items.push(t);
+      } else {
+        groups.push({ date: dateStr, items: [t] });
+      }
     });
     return groups;
   }, [filteredTransactions]);
 
   return (
-    <div className="space-y-6 pb-20">
-      <div className="flex items-center justify-between px-1">
+    <div className="space-y-6 pb-6">
+      <div className="flex items-center justify-between px-1 mb-6">
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Transactions</h1>
-        <button 
-          onClick={() => setShowFilters(!showFilters)}
-          className={cn(
-            "p-2.5 rounded-2xl transition-all shadow-sm", 
-            showFilters ? "bg-indigo-600 text-white" : "bg-white border border-gray-100 text-gray-500"
-          )}
-        >
-          <Filter className="w-5 h-5" />
-        </button>
-      </div>
-
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-        <input 
-          type="text" 
-          placeholder="Search transactions..."
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          className="w-full bg-white border border-gray-100 rounded-2xl py-4 pl-12 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 shadow-sm"
+        
+        <FilterSection 
+          filters={filters}
+          onFilterChange={setFilters}
+          accounts={accounts || []}
+          categories={categories || []}
+          showSearch={true}
+          className="space-y-0"
         />
       </div>
 
-      <AnimatePresence>
-        {showFilters && (
-          <motion.div 
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="flex space-x-2 bg-gray-100 p-1 rounded-xl">
-              {(['all', 'income', 'expense'] as const).map(f => (
-                <button
-                  key={f}
-                  onClick={() => setFilterType(f)}
-                  className={cn(
-                    "flex-1 py-2 text-xs font-bold rounded-lg capitalize transition-all",
-                    filterType === f ? "bg-white text-indigo-600 shadow-sm" : "text-gray-500"
-                  )}
-                >
-                  {f}
-                </button>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
         <div className="space-y-8">
-          {(Object.entries(groupedTransactions) as [string, Transaction[]][]).map(([group, groupT]) => (
-            <div key={group} className="space-y-4">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">{group}</h3>
+          {groupedTransactions.map((group) => (
+            <div key={group.date} className="space-y-4">
+            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">{group.date}</h3>
             <div className="space-y-3">
-              {groupT.map((t) => (
-                <TransactionItem 
-                  key={t.id} 
-                  transaction={t} 
-                  category={getCategory(t.categoryId)}
-                  account={getAccount(t.accountId)}
-                  currency={settings?.currency}
-                />
-              ))}
+                {group.items.map((t) => {
+                  const cat = getCategory(t.categoryId);
+                  const pCat = cat?.parentId ? getCategory(cat.parentId) : undefined;
+                  return (
+                    <TransactionItem 
+                      key={t.id} 
+                      transaction={t} 
+                      category={cat}
+                      parentCategory={pCat}
+                      account={getAccount(t.accountId)}
+                      currency={settings?.currency}
+                      showDate={false}
+                    />
+                  );
+                })}
             </div>
           </div>
         ))}

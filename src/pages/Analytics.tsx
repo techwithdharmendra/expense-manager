@@ -32,20 +32,28 @@ import {
   Line
 } from 'recharts';
 import TransactionItem from '../components/TransactionItem';
+import FilterSection, { FilterState } from '../components/FilterSection';
 
 type TabType = 'expenses' | 'income' | 'combined';
 
 export default function Analytics() {
   const [searchParams] = useSearchParams();
-  const initialTab = (searchParams.get('tab') as TabType) || 'expenses';
+  const initialTab = (searchParams.get('tab') as TabType) || 'combined';
   const initialAccountId = searchParams.get('accountId') || 'all';
+  const initialCategoryId = searchParams.get('categoryId') || 'all';
 
-  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
-  const [selectedAccountId, setSelectedAccountId] = useState<string | 'all'>(initialAccountId);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | 'all'>('all');
-  const [dateRange, setDateRange] = useState<'month' | 'week' | 'year' | 'all' | 'custom'>('month');
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
+  const [trendView, setTrendView] = useState<'line' | 'bar'>('line');
+  const [compositionView, setCompositionView] = useState<'pie' | 'bar'>('pie');
+
+  const [filters, setFilters] = useState<FilterState>({
+    type: initialTab === 'combined' ? 'all' : (initialTab as any),
+    accountId: initialAccountId,
+    categoryId: initialCategoryId,
+    dateRange: 'month',
+    startDate: '',
+    endDate: '',
+    searchTerm: ''
+  });
 
   const transactions = useLiveQuery(() => db.transactions.toArray()) || [];
   const categories = useLiveQuery(() => db.categories.toArray()) || [];
@@ -53,43 +61,51 @@ export default function Analytics() {
   const settings = useLiveQuery(() => db.settings.get(1));
 
   useEffect(() => {
-    setActiveTab(initialTab);
-    setSelectedAccountId(initialAccountId);
-  }, [initialTab, initialAccountId]);
+    setFilters(prev => ({
+      ...prev,
+      type: initialTab === 'combined' ? 'all' : (initialTab as any),
+      accountId: initialAccountId,
+      categoryId: initialCategoryId
+    }));
+  }, [initialTab, initialAccountId, initialCategoryId]);
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
-      const matchType = activeTab === 'combined' ? true : (activeTab === 'expenses' ? 'expense' : 'income') === t.type;
-      const matchAccount = selectedAccountId === 'all' || Number(t.accountId) === Number(selectedAccountId);
-      const matchCategory = selectedCategoryId === 'all' || 
-                           Number(t.categoryId) === Number(selectedCategoryId) ||
-                           Number(categories.find(c => Number(c.id) === Number(t.categoryId))?.parentId) === Number(selectedCategoryId);
+      const matchType = filters.type === 'all' ? true : filters.type === t.type;
+      const matchAccount = filters.accountId === 'all' || Number(t.accountId) === Number(filters.accountId);
+      const matchCategory = filters.categoryId === 'all' || 
+                           Number(t.categoryId) === Number(filters.categoryId) ||
+                           Number(categories.find(c => Number(c.id) === Number(t.categoryId))?.parentId) === Number(filters.categoryId);
       
+      const matchSearch = !filters.searchTerm || 
+                         t.title.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
+                         t.note?.toLowerCase().includes(filters.searchTerm.toLowerCase());
+
       let matchDate = true;
       const now = new Date();
       const tDate = new Date(t.date);
 
-      if (dateRange === 'month') {
+      if (filters.dateRange === 'month') {
         matchDate = tDate.getMonth() === now.getMonth() && tDate.getFullYear() === now.getFullYear();
-      } else if (dateRange === 'week') {
+      } else if (filters.dateRange === 'week') {
         const weekAgo = new Date();
         weekAgo.setDate(now.getDate() - 7);
         matchDate = tDate >= weekAgo;
-      } else if (dateRange === 'year') {
+      } else if (filters.dateRange === 'year') {
         matchDate = tDate.getFullYear() === now.getFullYear();
-      } else if (dateRange === 'custom') {
-        if (startDate && endDate) {
-          const start = new Date(startDate);
+      } else if (filters.dateRange === 'custom') {
+        if (filters.startDate && filters.endDate) {
+          const start = new Date(filters.startDate);
           start.setHours(0, 0, 0, 0);
-          const end = new Date(endDate);
+          const end = new Date(filters.endDate);
           end.setHours(23, 59, 59, 999);
           matchDate = tDate >= start && tDate <= end;
         }
       }
 
-      return matchType && matchAccount && matchCategory && matchDate;
+      return matchType && matchAccount && matchCategory && matchDate && matchSearch;
     });
-  }, [transactions, activeTab, selectedAccountId, selectedCategoryId, dateRange, categories]);
+  }, [transactions, filters, categories]);
 
   const trendData = useMemo(() => {
     if (filteredTransactions.length === 0) return [];
@@ -114,12 +130,13 @@ export default function Analytics() {
   }, [filteredTransactions]);
 
   const catStats = useMemo(() => {
-    const stats: { [key: string]: { amount: number, color: string, name: string, type: string } } = {};
+    const stats: { [key: string]: { id: string, amount: number, color: string, name: string, type: string } } = {};
     filteredTransactions.forEach(t => {
       const cat = categories.find(c => String(c.id) === String(t.categoryId));
       const catId = cat?.id?.toString() || 'unknown';
       if (!stats[catId]) {
         stats[catId] = { 
+          id: catId,
           amount: 0, 
           color: cat?.color || '#cbd5e1', 
           name: cat?.name || 'Unknown',
@@ -133,289 +150,286 @@ export default function Analytics() {
 
   const totalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const totalExpense = filteredTransactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-  const totalAmount = activeTab === 'combined' ? (totalIncome - totalExpense) : (activeTab === 'expenses' ? totalExpense : totalIncome);
+  const totalAmount = filters.type === 'all' ? (totalIncome - totalExpense) : (filters.type === 'expense' ? totalExpense : totalIncome);
 
   const getCategory = (id: string | number) => categories?.find(c => String(c.id) === String(id));
   const getAccount = (id: string | number) => accounts?.find(a => String(a.id) === String(id));
 
   return (
-    <div className="space-y-6 pb-20">
-      <div className="flex flex-col space-y-4 px-1">
+    <div className="space-y-6 pb-6">
+      <div className="flex items-center justify-between px-1 mb-6">
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Analytics</h1>
-        <div className="flex p-1 bg-gray-100 rounded-2xl w-full">
-           <button 
-            onClick={() => setActiveTab('expenses')}
-            className={cn("flex-1 py-2 text-[10px] font-bold uppercase rounded-xl transition-all", activeTab === 'expenses' ? "bg-white text-indigo-600 shadow-sm" : "text-gray-500")}
-           >
-             Expenses
-           </button>
-           <button 
-            onClick={() => setActiveTab('income')}
-            className={cn("flex-1 py-2 text-[10px] font-bold uppercase rounded-xl transition-all", activeTab === 'income' ? "bg-white text-emerald-600 shadow-sm" : "text-gray-500")}
-           >
-             Income
-           </button>
-           <button 
-            onClick={() => setActiveTab('combined')}
-            className={cn("flex-1 py-2 text-[10px] font-bold uppercase rounded-xl transition-all", activeTab === 'combined' ? "bg-white text-gray-900 shadow-sm" : "text-gray-500")}
-           >
-             Total
-           </button>
-        </div>
+        <FilterSection 
+          filters={filters}
+          onFilterChange={setFilters}
+          accounts={accounts}
+          categories={categories}
+          showTypeFilter={true}
+          className="space-y-0"
+        />
       </div>
 
-      {/* Advanced Filters */}
-      <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-50 space-y-4">
-         <div className="flex items-center space-x-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-            <Filter className="w-3 h-3" />
-            <span>Refine Report</span>
-         </div>
-         <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5 col-span-2">
-               <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">By Account</label>
-               <div className="relative">
-                  <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                  <select 
-                    value={selectedAccountId}
-                    onChange={e => setSelectedAccountId(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 bg-gray-50 rounded-xl text-xs font-bold text-gray-700 appearance-none focus:outline-none ring-1 ring-transparent focus:ring-indigo-100"
-                  >
-                    <option value="all">All Wallets</option>
-                    {accounts.map(acc => (
-                      <option key={acc.id} value={acc.id}>{acc.name}</option>
-                    ))}
-                  </select>
+      {/* Summary Highlight - Updated to match Dashboard light theme */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-50 relative overflow-hidden">
+         <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/30 rounded-full -mr-12 -mt-12 blur-2xl" />
+         
+         <div className="relative z-10 text-gray-900">
+            <div className="flex items-center justify-between mb-4">
+               <div>
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">
+                    {filters.type === 'all' ? 'Net Cashflow' : (filters.type === 'expense' ? 'Total Spending' : 'Total Earnings')}
+                  </p>
+                  <h2 className={cn(
+                    "text-2xl font-bold tracking-tight",
+                    (filters.type === 'expense' || (filters.type === 'all' && totalAmount < 0)) ? "text-rose-500" : "text-emerald-500"
+                  )}>
+                    {formatCurrency(totalAmount, settings?.currency)}
+                  </h2>
+               </div>
+               <div className={cn(
+                 "w-9 h-9 rounded-2xl flex items-center justify-center border",
+                 filters.type === 'expense' ? "bg-indigo-50 border-indigo-100/50 text-indigo-600" : 
+                 filters.type === 'income' ? "bg-emerald-50 border-emerald-100/50 text-emerald-600" :
+                 "bg-gray-50 border-gray-100 text-gray-600"
+               )}>
+                  <Wallet className="w-4 h-4" />
                </div>
             </div>
-            <div className="space-y-1.5 col-span-2">
-               <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Period</label>
-               <select 
-                  value={dateRange}
-                  onChange={e => setDateRange(e.target.value as any)}
-                  className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-xs font-bold text-gray-700 appearance-none focus:outline-none ring-1 ring-transparent focus:ring-indigo-100"
-                >
-                  <option value="month">This Month</option>
-                  <option value="week">Past Week</option>
-                  <option value="year">Full Year</option>
-                  <option value="custom">Custom Range</option>
-                  <option value="all">Always</option>
-                </select>
-            </div>
-            {dateRange === 'custom' && (
-              <motion.div 
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="col-span-2 grid grid-cols-2 gap-4 pt-2 border-t border-gray-50"
-              >
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">From</label>
-                  <input 
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-xs font-bold text-gray-700 focus:outline-none"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">To</label>
-                  <input 
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-xs font-bold text-gray-700 focus:outline-none"
-                  />
-                </div>
-              </motion.div>
-            )}
-         </div>
-      </div>
-
-      {/* Summary Highlight */}
-      <div className={cn(
-        "rounded-[2rem] p-8 shadow-xl relative overflow-hidden transition-colors duration-500",
-        activeTab === 'expenses' ? "bg-indigo-600 shadow-indigo-100" : 
-        activeTab === 'income' ? "bg-emerald-600 shadow-emerald-100" :
-        "bg-gray-900 shadow-gray-200"
-      )}>
-         <div className="relative z-10 text-white">
-            <p className="text-[10px] font-bold text-white/60 uppercase tracking-[0.2em] mb-2">
-              {activeTab === 'combined' ? 'Net Cashflow' : (activeTab === 'expenses' ? 'Total Spending' : 'Total Earnings')}
-            </p>
-            <h2 className="text-4xl font-bold tracking-tight">
-              {formatCurrency(totalAmount, settings?.currency)}
-            </h2>
             
-            <div className="flex gap-4 mt-8">
-              <div className="flex-1 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10">
-                <div className="flex items-center space-x-1.5 mb-1">
-                  <ArrowDownLeft className="w-3 h-3 text-emerald-400" />
-                  <span className="text-[8px] font-bold text-white/60 uppercase">Income</span>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center space-x-3 group transition-transform">
+                <div className="w-1.5 h-6 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 </div>
-                <p className="text-sm font-bold">{formatCurrency(totalIncome, settings?.currency)}</p>
+                <div className="min-w-0">
+                  <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wider leading-none mb-1">Income</p>
+                  <p className="font-bold text-sm text-emerald-500 truncate">{formatCurrency(totalIncome, settings?.currency)}</p>
+                </div>
               </div>
-              <div className="flex-1 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10">
-                <div className="flex items-center space-x-1.5 mb-1">
-                  <ArrowUpRight className="w-3 h-3 text-rose-400" />
-                  <span className="text-[8px] font-bold text-white/60 uppercase">Expense</span>
+              <div className="flex items-center space-x-3 group transition-transform">
+                <div className="w-1.5 h-6 rounded-full bg-rose-50 flex items-center justify-center shrink-0">
+                  <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
                 </div>
-                <p className="text-sm font-bold">{formatCurrency(totalExpense, settings?.currency)}</p>
+                <div className="min-w-0">
+                  <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wider leading-none mb-1">Expense</p>
+                  <p className="font-bold text-sm text-rose-500 truncate">{formatCurrency(totalExpense, settings?.currency)}</p>
+                </div>
               </div>
             </div>
          </div>
-         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 blur-3xl" />
-         <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full -ml-24 -mb-24 blur-2xl" />
       </div>
 
       {/* Trend Chart */}
-      <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-50">
-        <div className="flex items-center justify-between mb-8 px-1">
-           <h3 className="text-sm font-bold text-gray-900 uppercase tracking-tight">
-             {activeTab === 'combined' ? 'Cashflow History' : 'Activity Trends'}
-           </h3>
-           <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-1">
-                 <div className="w-2 h-2 rounded-full bg-emerald-400" />
-                 <span className="text-[8px] font-bold text-gray-400 uppercase">In</span>
+      {filters.type === 'all' && (
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-50">
+          <div className="flex flex-col space-y-4 mb-8 px-1">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-gray-900 uppercase tracking-tight">
+                Cashflow History
+              </h3>
+              <div className="flex bg-gray-50 p-1 rounded-xl">
+                 <button 
+                  onClick={() => setTrendView('line')}
+                  className={cn("px-3 py-1.5 text-[8px] font-bold uppercase rounded-lg transition-all", trendView === 'line' ? "bg-white text-indigo-600 shadow-sm" : "text-gray-400")}
+                 >
+                   Lines
+                 </button>
+                 <button 
+                  onClick={() => setTrendView('bar')}
+                  className={cn("px-3 py-1.5 text-[8px] font-bold uppercase rounded-lg transition-all", trendView === 'bar' ? "bg-white text-indigo-600 shadow-sm" : "text-gray-400")}
+                 >
+                   Bars
+                 </button>
               </div>
-              <div className="flex items-center space-x-1">
-                 <div className="w-2 h-2 rounded-full bg-rose-400" />
-                 <span className="text-[8px] font-bold text-gray-400 uppercase">Out</span>
-              </div>
-           </div>
+            </div>
+            <div className="flex items-center justify-end space-x-4">
+                <div className="flex items-center space-x-1">
+                   <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                   <span className="text-[8px] font-bold text-gray-400 uppercase">In</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                   <div className="w-2 h-2 rounded-full bg-rose-400" />
+                   <span className="text-[8px] font-bold text-gray-400 uppercase">Out</span>
+                </div>
+            </div>
+          </div>
+          <div className="h-64 w-full">
+             {trendData.length > 0 ? (
+               <ResponsiveContainer width="100%" height="100%">
+                 {trendView === 'bar' ? (
+                   <BarChart data={trendData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis 
+                        dataKey="date" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 600 }} 
+                      />
+                      <YAxis hide />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                        cursor={{ fill: 'rgba(0,0,0,0.02)' }}
+                      />
+                      <Bar dataKey="income" fill="#10B981" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="expense" fill="#EF4444" radius={[4, 4, 0, 0]} />
+                   </BarChart>
+                 ) : (
+                   <LineChart data={trendData}>
+                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                     <XAxis 
+                      dataKey="date" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 600 }} 
+                     />
+                     <YAxis hide />
+                     <Tooltip 
+                       contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                     />
+                     <Line type="monotone" dataKey="income" stroke="#10B981" strokeWidth={3} dot={{ r: 4, fill: '#10B981', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
+                     <Line type="monotone" dataKey="expense" stroke="#EF4444" strokeWidth={3} dot={{ r: 4, fill: '#EF4444', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
+                   </LineChart>
+                 )}
+               </ResponsiveContainer>
+             ) : (
+               <div className="h-full flex flex-col items-center justify-center text-gray-300">
+                 <p className="text-xs font-bold uppercase tracking-widest">No Trend Data</p>
+               </div>
+             )}
+          </div>
         </div>
-        <div className="h-64 w-full">
-           {trendData.length > 0 ? (
-             <ResponsiveContainer width="100%" height="100%">
-               {activeTab === 'combined' ? (
-                 <LineChart data={trendData}>
-                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                   <XAxis 
-                    dataKey="date" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 600 }} 
-                   />
-                   <YAxis hide />
-                   <Tooltip 
-                     contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                   />
-                   <Line type="monotone" dataKey="income" stroke="#10B981" strokeWidth={3} dot={{ r: 4, fill: '#10B981', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
-                   <Line type="monotone" dataKey="expense" stroke="#EF4444" strokeWidth={3} dot={{ r: 4, fill: '#EF4444', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
-                 </LineChart>
-               ) : (
-                 <AreaChart data={trendData}>
-                   <defs>
-                     <linearGradient id="colorInc" x1="0" y1="0" x2="0" y2="1">
-                       <stop offset="5%" stopColor="#10B981" stopOpacity={0.15}/>
-                       <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
-                     </linearGradient>
-                     <linearGradient id="colorExp" x1="0" y1="0" x2="0" y2="1">
-                       <stop offset="5%" stopColor="#EF4444" stopOpacity={0.15}/>
-                       <stop offset="95%" stopColor="#EF4444" stopOpacity={0}/>
-                     </linearGradient>
-                   </defs>
-                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                   <XAxis 
-                    dataKey="date" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: 600 }} 
-                   />
-                   <YAxis hide />
-                   <Tooltip 
-                     contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                   />
-                   { (activeTab === 'income' || activeTab === 'combined') && (
-                     <Area type="monotone" dataKey="income" stroke="#10B981" strokeWidth={3} fillOpacity={1} fill="url(#colorInc)" />
-                   )}
-                   { (activeTab === 'expenses' || activeTab === 'combined') && (
-                     <Area type="monotone" dataKey="expense" stroke="#EF4444" strokeWidth={3} fillOpacity={1} fill="url(#colorExp)" />
-                   )}
-                 </AreaChart>
-               )}
-             </ResponsiveContainer>
-           ) : (
-             <div className="h-full flex flex-col items-center justify-center text-gray-300">
-               <p className="text-xs font-bold uppercase tracking-widest">No Trend Data</p>
-             </div>
-           )}
-        </div>
-      </div>
+      )}
 
       {/* Breakdown List */}
       <div className="space-y-4">
-        <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Detailed Breakdown</h3>
+        <div className="flex items-center justify-between px-1">
+          <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Detailed Breakdown</h3>
+          <div className="flex bg-gray-100 p-1 rounded-lg">
+            <button 
+              onClick={() => setCompositionView('pie')}
+              className={cn("px-2 py-1 text-[8px] font-bold uppercase rounded-md transition-all", compositionView === 'pie' ? "bg-white text-indigo-600 shadow-sm" : "text-gray-400")}
+            >
+              Donut
+            </button>
+            <button 
+              onClick={() => setCompositionView('bar')}
+              className={cn("px-2 py-1 text-[8px] font-bold uppercase rounded-md transition-all", compositionView === 'bar' ? "bg-white text-indigo-600 shadow-sm" : "text-gray-400")}
+            >
+              Ranks
+            </button>
+          </div>
+        </div>
         
-        {activeTab !== 'combined' && catStats.length > 0 && (
-          <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-50 flex flex-col items-center">
+        {catStats.length > 0 && (
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-50 flex flex-col items-center">
              <div className="relative h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={catStats}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={70}
-                      outerRadius={90}
-                      paddingAngle={5}
-                      dataKey="amount"
-                    >
-                      {catStats.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                      formatter={(value: number) => formatCurrency(value, settings?.currency)}
-                    />
-                  </PieChart>
+                  {compositionView === 'pie' ? (
+                    <PieChart>
+                      <Pie
+                        data={catStats}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={70}
+                        outerRadius={90}
+                        paddingAngle={5}
+                        dataKey="amount"
+                      >
+                        {catStats.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                        formatter={(value: number) => formatCurrency(value, settings?.currency)}
+                      />
+                    </PieChart>
+                  ) : (
+                    <BarChart layout="vertical" data={catStats} margin={{ left: 20, right: 20 }}>
+                       <XAxis type="number" hide />
+                       <YAxis 
+                        dataKey="name" 
+                        type="category" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fontSize: 9, fill: '#64748b', fontWeight: 600 }}
+                        width={60}
+                       />
+                       <Tooltip 
+                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                        formatter={(value: number) => formatCurrency(value, settings?.currency)}
+                       />
+                       <Bar dataKey="amount" radius={[0, 4, 4, 0]}>
+                         {catStats.map((entry, index) => (
+                           <Cell key={`cell-${index}`} fill={entry.color} />
+                         ))}
+                       </Bar>
+                    </BarChart>
+                  )}
                 </ResponsiveContainer>
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{activeTab === 'expenses' ? 'Spent' : 'Earned'}</p>
-                   <p className={cn("text-xl font-bold leading-tight", activeTab === 'expenses' ? "text-rose-500" : "text-emerald-500")}>
-                     {formatCurrency(totalAmount, settings?.currency)}
-                   </p>
-                </div>
+                {compositionView === 'pie' && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{filters.type === 'expense' ? 'Spent' : (filters.type === 'income' ? 'Earned' : 'Balance')}</p>
+                     <p className={cn(
+                       "text-xl font-bold leading-tight", 
+                       (filters.type === 'expense' || (filters.type === 'all' && (totalIncome - totalExpense) < 0)) ? "text-rose-500" : "text-emerald-500"
+                     )}>
+                       {(filters.type === 'expense' || filters.type === 'income') ? formatCurrency(totalAmount, settings?.currency) : formatCurrency(totalIncome - totalExpense, settings?.currency)}
+                     </p>
+                  </div>
+                )}
              </div>
           </div>
         )}
 
-        <div className="space-y-3">
-          {catStats.length > 0 ? catStats.map((stat, i) => (
-             <div key={i} className="bg-white rounded-3xl p-5 shadow-sm border border-gray-50 flex items-center justify-between group">
-                <div className="flex items-center space-x-4">
-                   <div 
-                    className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-sm transition-transform group-hover:scale-110"
-                    style={{ backgroundColor: stat.color }}
-                   >
-                     <Tag className="w-5 h-5" />
-                   </div>
-                   <div>
-                     <h4 className="font-bold text-sm text-gray-900">{stat.name}</h4>
-                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">
-                       {stat.type} • {((stat.amount / (stat.type === 'income' ? totalIncome : totalExpense)) * 100).toFixed(0)}%
-                     </p>
-                   </div>
-                </div>
-                <div className="text-right">
-                   <p className="font-bold text-sm text-gray-900">{formatCurrency(stat.amount, settings?.currency)}</p>
-                   <div className="w-20 h-1 mt-1.5 bg-gray-50 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full rounded-full" 
-                        style={{ 
-                          width: `${(stat.amount / (stat.type === 'income' ? totalIncome : totalExpense)) * 100}%`, 
-                          backgroundColor: stat.color 
-                        }}
-                      />
-                   </div>
-                </div>
-             </div>
-          )) : (
-            <div className="p-12 text-center bg-white rounded-3xl border border-dashed border-gray-100">
-               <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">No activities found</p>
-            </div>
-          )}
-        </div>
+        {filters.type !== 'all' && (
+          <div className="space-y-3">
+            {catStats.length > 0 ? catStats.map((stat, i) => (
+               <div 
+                key={i} 
+                onClick={() => setFilters(prev => ({ ...prev, categoryId: stat.id }))}
+                className={cn(
+                  "bg-white rounded-xl p-5 shadow-sm border border-gray-50 flex items-center justify-between group cursor-pointer transition-all active:scale-95",
+                  filters.categoryId === stat.id && "ring-2 ring-indigo-500 ring-offset-2"
+                )}
+               >
+                  <div className="flex items-center space-x-4">
+                     <div 
+                      className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-sm transition-transform group-hover:scale-110"
+                      style={{ backgroundColor: stat.color }}
+                     >
+                       <Tag className="w-5 h-5" />
+                     </div>
+                     <div>
+                       <h4 className="font-bold text-sm text-gray-900">{stat.name}</h4>
+                       <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">
+                         {stat.type} • {((stat.amount / (stat.type === 'income' ? totalIncome : totalExpense)) * 100).toFixed(0)}%
+                       </p>
+                     </div>
+                  </div>
+                  <div className="text-right">
+                     <p className={cn(
+                       "font-bold text-sm",
+                       stat.type === 'income' ? "text-emerald-500" : "text-rose-500"
+                     )}>{formatCurrency(stat.amount, settings?.currency)}</p>
+                     <div className="w-20 h-1 mt-1.5 bg-gray-50 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full rounded-full" 
+                          style={{ 
+                            width: `${(stat.amount / (stat.type === 'income' ? totalIncome : totalExpense)) * 100}%`, 
+                            backgroundColor: stat.color 
+                          }}
+                        />
+                     </div>
+                  </div>
+               </div>
+            )) : (
+              <div className="p-12 text-center bg-white rounded-3xl border border-dashed border-gray-100">
+                <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">No activities found</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Filtered Transactions List */}
@@ -423,15 +437,20 @@ export default function Analytics() {
         <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Transactions in this period</h3>
         <div className="space-y-3">
           {filteredTransactions.length > 0 ? (
-            filteredTransactions.sort((a,b) => b.date.getTime() - a.date.getTime()).map(t => (
-              <TransactionItem 
-                key={t.id}
-                transaction={t}
-                category={getCategory(t.categoryId)}
-                account={getAccount(t.accountId)}
-                currency={settings?.currency}
-              />
-            ))
+            filteredTransactions.sort((a,b) => b.date.getTime() - a.date.getTime() || (Number(b.id) - Number(a.id))).map(t => {
+              const cat = getCategory(t.categoryId);
+              const pCat = cat?.parentId ? getCategory(cat.parentId) : undefined;
+              return (
+                <TransactionItem 
+                  key={t.id}
+                  transaction={t}
+                  category={cat}
+                  parentCategory={pCat}
+                  account={getAccount(t.accountId)}
+                  currency={settings?.currency}
+                />
+              );
+            })
           ) : (
             <div className="p-8 text-center bg-gray-50 rounded-3xl border border-dashed border-gray-100">
                <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">No matching transactions</p>

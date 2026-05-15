@@ -26,7 +26,7 @@ export default function Budget() {
   const [isAdding, setIsAdding] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('total');
   const [amount, setAmount] = useState('');
-  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | number | null>(null);
 
   const budgetStats = useMemo(() => {
     if (!transactions || !budgets) return [];
@@ -92,7 +92,7 @@ export default function Budget() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-6">
       <ConfirmDialog 
         isOpen={confirmDelete !== null}
         title="Delete Budget?"
@@ -102,11 +102,11 @@ export default function Budget() {
         onConfirm={deleteBudget}
         onCancel={() => setConfirmDelete(null)}
       />
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Budgeting</h1>
+      <div className="flex items-center justify-between px-1">
+        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Budgeting</h1>
         <button 
            onClick={() => setIsAdding(!isAdding)}
-           className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-100"
+           className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-100 active:scale-90 transition-transform"
         >
           <Plus className={cn("w-6 h-6 transition-transform", isAdding && "rotate-45")} />
         </button>
@@ -187,7 +187,12 @@ export default function Budget() {
                 </div>
                 <div>
                   <h4 className="font-bold text-sm text-gray-900">{stat.name}</h4>
-                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">Remaining: {formatCurrency(Math.max(0, stat.limit - stat.spent), settings?.currency)}</p>
+                  <p className={cn(
+                    "text-[10px] font-bold uppercase tracking-tight",
+                    (stat.limit - stat.spent) > 0 ? "text-emerald-500" : "text-rose-500"
+                  )}>
+                    Remaining: {formatCurrency(Math.max(0, stat.limit - stat.spent), settings?.currency)}
+                  </p>
                 </div>
               </div>
               <button 
