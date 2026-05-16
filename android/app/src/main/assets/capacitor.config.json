@@ -1,0 +1,5 @@
+{
+	"appId": "com.wallettracker.app",
+	"appName": "Wallet Tracker",
+	"webDir": "dist"
+}
