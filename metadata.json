@@ -1,6 +1,6 @@
 {
   "name": "Wallet Tracker",
   "description": "Professional offline-first expense manager with smart analytics, category management, and private local storage. Track your spending with precision.",
-  "requestFramePermissions": [],
-  "majorCapabilities": []
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["filesystem", "share"]
 }

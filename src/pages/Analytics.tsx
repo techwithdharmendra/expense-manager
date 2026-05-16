@@ -47,8 +47,8 @@ export default function Analytics() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialTab = (searchParams.get('tab') as TabType) || 'combined';
-  const initialAccountId = searchParams.getAll('accountId');
-  const initialCategoryId = searchParams.getAll('categoryId');
+  const initialAccountId = useMemo(() => searchParams.getAll('accountId'), [searchParams]);
+  const initialCategoryId = useMemo(() => searchParams.getAll('categoryId'), [searchParams]);
 
   const [filters, setFilters] = useState<FilterState>(() => {
     const saved = filterStore.getState();
@@ -160,12 +160,24 @@ export default function Analytics() {
   useEffect(() => {
     const hasParams = searchParams.has('tab') || searchParams.has('accountId') || searchParams.has('categoryId');
     if (hasParams) {
-      setFilters(prev => ({
-        ...prev,
-        type: initialTab === 'combined' ? 'all' : (initialTab === 'expenses' ? 'expense' : 'income'),
-        accountId: initialAccountId,
-        categoryId: initialCategoryId
-      }));
+      setFilters(prev => {
+        // Compare to avoid infinite updates if they are already the same
+        const newType = initialTab === 'combined' ? 'all' : (initialTab === 'expenses' ? 'expense' : 'income');
+        
+        const accountsMatch = prev.accountId.length === initialAccountId.length && prev.accountId.every((v, i) => v === initialAccountId[i]);
+        const categoriesMatch = prev.categoryId.length === initialCategoryId.length && prev.categoryId.every((v, i) => v === initialCategoryId[i]);
+        
+        if (prev.type === newType && accountsMatch && categoriesMatch) {
+          return prev;
+        }
+        
+        return {
+          ...prev,
+          type: newType,
+          accountId: initialAccountId,
+          categoryId: initialCategoryId
+        };
+      });
     }
   }, [searchParams, initialTab, initialAccountId, initialCategoryId]);
 

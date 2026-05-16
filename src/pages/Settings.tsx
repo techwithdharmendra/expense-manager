@@ -158,7 +158,7 @@ export default function Settings() {
     if (!file) return;
 
     if (!file.name.toLowerCase().endsWith('.json')) {
-      toast.error('Please select a JSON backup file (not CSV)');
+      toast.error('Please select a JSON backup file');
       e.target.value = '';
       return;
     }
@@ -166,19 +166,29 @@ export default function Settings() {
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
-        const data = JSON.parse(event.target?.result as string);
-        // Check for at least one major data key
-        if (data && (data.transactions || data.categories || data.accounts)) {
+        const text = event.target?.result as string;
+        if (!text) throw new Error('Empty file');
+        const data = JSON.parse(text);
+        
+        // More robust check - allow even if empty arrays (after clear all)
+        const hasProps = data && typeof data === 'object' && (
+          Array.isArray(data.transactions) || 
+          Array.isArray(data.categories) || 
+          Array.isArray(data.accounts) ||
+          data.settings
+        );
+
+        if (hasProps) {
            setImportPending(data);
         } else {
-          toast.error('Invalid backup file structure: Missing data');
+          toast.error('Invalid backup: Missing data structure');
         }
       } catch (err) {
-        toast.error('Invalid file: Not a valid JSON format');
+        console.error('Import Parse Error:', err);
+        toast.error('Invalid file: JSON parsing failed');
       }
     };
     reader.readAsText(file);
-    // Reset input
     e.target.value = '';
   };
 
@@ -438,10 +448,9 @@ export default function Settings() {
                 <p className="text-[10px] text-gray-400 font-medium">Open your transactions in Excel</p>
               </div>
             </div>
-            <Download className="w-4 h-4 text-emerald-300" />
           </button>
 
-          <button onClick={exportData} className="flex w-full items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50">
+          <button onClick={exportData} className="flex w-full items-center p-4 border-b border-gray-50 active:bg-gray-50">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
                 <Download className="w-5 h-5 text-blue-600" />
@@ -453,7 +462,7 @@ export default function Settings() {
             </div>
           </button>
 
-          <label className="flex w-full items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50 cursor-pointer">
+          <label className="flex w-full items-center p-4 border-b border-gray-50 active:bg-gray-50 cursor-pointer">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center">
                 <Upload className="w-5 h-5" />
