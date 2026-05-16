@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -9,23 +9,24 @@ import {
   Wallet as WalletIcon, 
   Settings as SettingsIcon,
   Plus as PlusIcon,
-  Target as TargetIcon
+  Target as TargetIcon,
+  Loader2
 } from 'lucide-react';
 import { db, initDefaultCategories, initDefaultSettings, initDefaultAccounts } from './db';
 import { cn } from './lib/utils';
 import PinLock from './components/PinLock';
 import { useLiveQuery } from 'dexie-react-hooks';
 
-// Pages
-import Dashboard from './pages/Dashboard';
-import Transactions from './pages/Transactions';
-import Analytics from './pages/Analytics';
-import Budget from './pages/Budget';
-import Settings from './pages/Settings';
-import AddTransaction from './pages/AddTransaction';
-import ManageAccounts from './pages/ManageAccounts';
-import ManageCategories from './pages/ManageCategories';
-import ManageSubCategories from './pages/ManageSubCategories';
+// Lazy load Pages
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Transactions = lazy(() => import('./pages/Transactions'));
+const Analytics = lazy(() => import('./pages/Analytics'));
+const Budget = lazy(() => import('./pages/Budget'));
+const Settings = lazy(() => import('./pages/Settings'));
+const AddTransaction = lazy(() => import('./pages/AddTransaction'));
+const ManageAccounts = lazy(() => import('./pages/ManageAccounts'));
+const ManageCategories = lazy(() => import('./pages/ManageCategories'));
+const ManageSubCategories = lazy(() => import('./pages/ManageSubCategories'));
 
 import { Toaster } from 'sonner';
 
@@ -57,6 +58,17 @@ function BottomNav() {
   );
 }
 
+function LoadingFallback() {
+  return (
+    <div className="flex h-full w-full items-center justify-center min-h-[300px]">
+      <div className="flex flex-col items-center space-y-3">
+        <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+        <p className="text-xs font-medium text-gray-400 uppercase tracking-widest">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
 function PageWrapper({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   return (
@@ -68,7 +80,9 @@ function PageWrapper({ children }: { children: React.ReactNode }) {
       transition={{ duration: 0.3, ease: 'easeOut' }}
       className="pb-4 pt-3 px-4 md:px-6 min-h-full bg-transparent"
     >
-      {children}
+      <Suspense fallback={<LoadingFallback />}>
+        {children}
+      </Suspense>
     </motion.div>
   );
 }
@@ -107,6 +121,16 @@ export default function App() {
       checkData();
     }
   }, [initialized, isLocked]);
+
+  useEffect(() => {
+    if (settings) {
+      if (settings.isDarkMode) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+  }, [settings?.isDarkMode]);
 
   if (!initialized) return (
     <div className="h-screen w-full flex flex-col items-center justify-center bg-indigo-600 text-white overflow-hidden">

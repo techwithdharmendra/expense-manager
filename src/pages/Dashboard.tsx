@@ -16,7 +16,9 @@ import {
   PieChart as PieChartIcon,
   BarChart2,
   CreditCard,
-  LayoutGrid
+  LayoutGrid,
+  Moon,
+  Sun
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
@@ -161,6 +163,12 @@ export default function Dashboard() {
     return Object.values(stats_map).sort((a, b) => b.value - a.value);
   }, [categories, chartType], []);
 
+  const toggleTheme = async () => {
+    if (settings) {
+      await db.settings.update(1, { isDarkMode: !settings.isDarkMode });
+    }
+  };
+
   const totalType = (categoryChartData || []).reduce((sum: number, item: any) => sum + item.value, 0);
 
   return (
@@ -172,6 +180,9 @@ export default function Dashboard() {
           <h1 className="text-lg font-bold text-gray-900 tracking-tight leading-none">Wallet Tracker</h1>
         </div>
         <div className="flex items-center space-x-1.5">
+          <button onClick={toggleTheme} className="w-8 h-8 rounded-xl bg-white shadow-sm flex items-center justify-center text-gray-400 hover:bg-gray-50 transition-colors border border-gray-100" title="Toggle Theme">
+            {settings?.isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
           <Link to="/settings/accounts" className="w-8 h-8 rounded-xl bg-white shadow-sm flex items-center justify-center text-gray-400 hover:bg-gray-50 transition-colors border border-gray-100" title="Accounts">
             <CreditCard className="w-4 h-4" />
           </Link>
@@ -305,6 +316,31 @@ export default function Dashboard() {
                   outerRadius={65}
                   paddingAngle={5}
                   dataKey="value"
+                  label={(props) => {
+                    const RADIAN = Math.PI / 180;
+                    const { cx, cy, midAngle, outerRadius, fill, name } = props;
+                    const radius = outerRadius + 15;
+                    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                    
+                    const startX = cx + outerRadius * Math.cos(-midAngle * RADIAN);
+                    const startY = cy + outerRadius * Math.sin(-midAngle * RADIAN);
+                    
+                    const endX = cx + (outerRadius + 10) * Math.cos(-midAngle * RADIAN);
+                    const endY = cy + (outerRadius + 10) * Math.sin(-midAngle * RADIAN);
+                    
+                    const textX = endX + (x > cx ? 1 : -1) * 5;
+                    
+                    return (
+                      <g>
+                        <path d={`M${startX},${startY} L${endX},${endY} L${textX},${endY}`} stroke={fill} fill="none" strokeWidth={2} />
+                        <text x={textX + (x > cx ? 2 : -2)} y={endY} fill={fill} textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={11} fontWeight={600}>
+                          {name}
+                        </text>
+                      </g>
+                    );
+                  }}
+                  labelLine={false}
                 >
                   {categoryChartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />

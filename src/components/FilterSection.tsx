@@ -30,6 +30,7 @@ interface FilterSectionProps {
   showSearch?: boolean;
   className?: string;
   showTypeFilter?: boolean;
+  excludeTransfer?: boolean;
 }
 
 export default function FilterSection({ 
@@ -39,7 +40,8 @@ export default function FilterSection({
   categories,
   showSearch = true,
   className,
-  showTypeFilter = true
+  showTypeFilter = true,
+  excludeTransfer = false
 }: FilterSectionProps) {
   const [isOpen, setIsOpen] = React.useState(false);
 
@@ -117,7 +119,7 @@ export default function FilterSection({
                 <div className="space-y-2">
                   <label className="text-[9px] font-bold text-gray-400 uppercase ml-1">Transaction Type</label>
                   <div className="flex p-1 bg-gray-50 rounded-xl">
-                    {(['all', 'income', 'expense', 'transfer'] as const).map(f => (
+                    {(excludeTransfer ? ['all', 'income', 'expense'] : ['all', 'income', 'expense', 'transfer'] as const).map(f => (
                       <button
                         key={f}
                         onClick={() => updateFilter({ type: f })}

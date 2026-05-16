@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { formatCurrency, cn } from '../lib/utils';
@@ -22,18 +22,15 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import TransactionItem from '../components/TransactionItem';
 import FilterSection, { FilterState } from '../components/FilterSection';
+import { filterStore } from '../lib/filterStore';
 
 export default function Transactions() {
   const navigate = useNavigate();
-  const [filters, setFilters] = useState<FilterState>({
-    type: 'all',
-    accountId: 'all',
-    categoryId: 'all',
-    dateRange: 'month',
-    startDate: '',
-    endDate: '',
-    searchTerm: ''
-  });
+  const [filters, setFilters] = useState<FilterState>(() => filterStore.getState());
+
+  useEffect(() => {
+    filterStore.setState(filters);
+  }, [filters]);
 
   const [limit, setLimit] = useState(50);
 

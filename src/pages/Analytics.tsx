@@ -33,6 +33,7 @@ import {
 } from 'recharts';
 import TransactionItem from '../components/TransactionItem';
 import FilterSection, { FilterState } from '../components/FilterSection';
+import { filterStore } from '../lib/filterStore';
 
 type TabType = 'expenses' | 'income' | 'combined';
 
@@ -45,14 +46,23 @@ export default function Analytics() {
   const [trendView, setTrendView] = useState<'line' | 'bar'>('line');
   const [compositionView, setCompositionView] = useState<'pie' | 'bar'>('pie');
 
-  const [filters, setFilters] = useState<FilterState>({
-    type: initialTab === 'combined' ? 'all' : (initialTab as any),
-    accountId: initialAccountId,
-    categoryId: initialCategoryId,
-    dateRange: 'month',
-    startDate: '',
-    endDate: '',
-    searchTerm: ''
+  const [filters, setFilters] = useState<FilterState>(() => {
+    const saved = filterStore.getState();
+    const hasParams = searchParams.has('tab') || searchParams.has('accountId') || searchParams.has('categoryId');
+    
+    if (hasParams) {
+      return {
+        ...saved,
+        type: initialTab === 'combined' ? 'all' : (initialTab === 'expenses' ? 'expense' : 'income'),
+        accountId: initialAccountId,
+        categoryId: initialCategoryId,
+      };
+    }
+    
+    if (saved.type === 'transfer') {
+      return { ...saved, type: 'all' };
+    }
+    return saved;
   });
 
   const [limit, setLimit] = useState(50); // Optional limit for list rendering, though charts require all data
@@ -70,13 +80,20 @@ export default function Analytics() {
   }, [accountsLive]);
 
   useEffect(() => {
-    setFilters(prev => ({
-      ...prev,
-      type: initialTab === 'combined' ? 'all' : (initialTab as any),
-      accountId: initialAccountId,
-      categoryId: initialCategoryId
-    }));
-  }, [initialTab, initialAccountId, initialCategoryId]);
+    filterStore.setState(filters);
+  }, [filters]);
+
+  useEffect(() => {
+    const hasParams = searchParams.has('tab') || searchParams.has('accountId') || searchParams.has('categoryId');
+    if (hasParams) {
+      setFilters(prev => ({
+        ...prev,
+        type: initialTab === 'combined' ? 'all' : (initialTab === 'expenses' ? 'expense' : 'income'),
+        accountId: initialAccountId,
+        categoryId: initialCategoryId
+      }));
+    }
+  }, [searchParams, initialTab, initialAccountId, initialCategoryId]);
 
   const filteredTransactions = useLiveQuery(async () => {
     let collection = db.transactions.orderBy('date').reverse();
@@ -226,6 +243,7 @@ export default function Analytics() {
           accounts={accounts}
           categories={categories}
           showTypeFilter={true}
+          excludeTransfer={true}
           className="space-y-0"
         />
       </div>
@@ -399,6 +417,31 @@ export default function Analytics() {
                         outerRadius={90}
                         paddingAngle={5}
                         dataKey="amount"
+                        label={(props) => {
+                          const RADIAN = Math.PI / 180;
+                          const { cx, cy, midAngle, outerRadius, fill, name } = props;
+                          const radius = outerRadius + 15;
+                          const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                          const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                          
+                          const startX = cx + outerRadius * Math.cos(-midAngle * RADIAN);
+                          const startY = cy + outerRadius * Math.sin(-midAngle * RADIAN);
+                          
+                          const endX = cx + (outerRadius + 10) * Math.cos(-midAngle * RADIAN);
+                          const endY = cy + (outerRadius + 10) * Math.sin(-midAngle * RADIAN);
+                          
+                          const textX = endX + (x > cx ? 1 : -1) * 5;
+                          
+                          return (
+                            <g>
+                              <path d={`M${startX},${startY} L${endX},${endY} L${textX},${endY}`} stroke={fill} fill="none" strokeWidth={2} />
+                              <text x={textX + (x > cx ? 2 : -2)} y={endY} fill={fill} textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={11} fontWeight={600}>
+                                {name}
+                              </text>
+                            </g>
+                          );
+                        }}
+                        labelLine={false}
                       >
                         {catStats.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />

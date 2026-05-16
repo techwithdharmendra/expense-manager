@@ -240,19 +240,18 @@ export default function ManageCategories() {
               </button>
 
               {showIconPicker && (
-                <div className="absolute inset-0 z-10 bg-white rounded-xl p-6 space-y-4">
-                   <div className="flex items-center justify-between">
-                     <h3 className="font-bold text-sm">Select Icon</h3>
-                     <button onClick={() => setShowIconPicker(false)} className="p-1.5 bg-gray-50 rounded-lg"><X className="w-3.5 h-3.5" /></button>
+                <div className="absolute inset-0 z-10 bg-white/95 backdrop-blur-sm flex flex-col rounded-xl">
+                   <div className="p-4 pt-5 pr-5 flex items-center justify-end shrink-0">
+                     <button onClick={() => setShowIconPicker(false)} className="p-1.5 bg-gray-50 text-gray-500 rounded-lg hover:bg-gray-100 active:scale-95 transition-all"><X className="w-4 h-4" /></button>
                    </div>
-                   <div className="grid grid-cols-4 gap-3 max-h-60 overflow-y-auto no-scrollbar">
+                   <div className="flex-1 overflow-y-auto content-start px-6 pb-6 grid grid-cols-5 gap-3 sm:grid-cols-6 lg:grid-cols-8">
                       {CATEGORY_ICONS.map(i => (
                         <button 
                           key={i.name}
                           onClick={() => { setIcon(i.name); setShowIconPicker(false); }}
-                          className={cn("p-3 rounded-xl bg-gray-50 flex items-center justify-center transition-colors", icon === i.name ? "bg-indigo-600 text-white" : "text-gray-400 hover:bg-gray-100")}
+                          className={cn("aspect-square rounded-xl bg-gray-50 flex items-center justify-center transition-colors hover:shadow-sm active:scale-95", icon === i.name ? "bg-indigo-600 text-white shadow-indigo-200" : "text-gray-500 hover:bg-white border border-transparent hover:border-gray-200")}
                         >
-                          <i.icon className="w-5 h-5" />
+                          <i.icon className="w-6 h-6" />
                         </button>
                       ))}
                    </div>
