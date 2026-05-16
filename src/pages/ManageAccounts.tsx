@@ -303,7 +303,7 @@ export default function ManageAccounts() {
                            </div>
                            <div>
                              <h4 className="font-bold text-sm text-gray-900 truncate max-w-[120px] sm:max-w-full">{acc.name}</h4>
-                             <p className="text-[10px] text-gray-400 font-medium">Balance: <span className={cn(getAccountBalance(acc) >= 0 ? "text-emerald-500" : "text-rose-500")}>{formatCurrency(getAccountBalance(acc), settings?.currency)}</span></p>
+                             <p className="text-[10px] text-gray-400 font-medium">Balance: <span className={cn(getAccountBalance(acc) >= 0 ? "text-emerald-500" : "text-rose-500")}>{formatCurrency(getAccountBalance(acc), settings)}</span></p>
                            </div>
                          </div>
                          

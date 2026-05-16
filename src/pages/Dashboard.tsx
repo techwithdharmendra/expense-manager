@@ -3,6 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { formatCurrency, cn } from '../lib/utils';
+import { getMonthCycleStartEnd } from '../lib/dateUtils';
 import { motion } from 'motion/react';
 import { 
   ArrowUpRight, 
@@ -131,29 +132,33 @@ export default function Dashboard() {
   const categoryChartData = useLiveQuery(async () => {
     if (!categories) return [];
     
-    // For categories pie chart, maybe just current month?
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
+    // For categories pie chart, use current month cycle
+    const startDay = settings?.monthStartDate || 1;
+    const { start: startOfMonth, end: endOfMonth } = getMonthCycleStartEnd(new Date(), startDay);
 
-    const monthTxs = await db.transactions
-      .where('date')
-      .aboveOrEqual(startOfMonth)
-      .toArray();
+    // Get all transactions first, Dexie's between is currently inclusive/exclusive by default, we can just filter manually for 100% safety
+    const allTxs = await db.transactions.toArray();
+    const monthTxs = allTxs.filter(t => t.date >= startOfMonth && t.date <= endOfMonth);
 
     const filtered = monthTxs.filter(t => t.type === chartType);
     const stats_map: { [key: string]: { name: string, value: number, color: string, icon: string, id: string | number } } = {};
     
     filtered.forEach(t => {
-      const cat = categories.find(c => String(c.id) === String(t.categoryId));
-      const catName = cat?.name || 'Other';
-      const catId = cat?.id || 'unknown';
+      let cat = categories.find(c => String(c.id) === String(t.categoryId));
+      
+      let mainCat = cat;
+      if (cat && cat.parentId) {
+         mainCat = categories.find(c => String(c.id) === String(cat!.parentId)) || cat;
+      }
+      
+      const catName = mainCat?.name || 'Other';
+      const catId = mainCat?.id || 'unknown';
       if (!stats_map[catName]) {
         stats_map[catName] = { 
           name: catName, 
           value: 0, 
-          color: cat?.color || '#CBD5E1',
-          icon: cat?.icon || 'Tag',
+          color: mainCat?.color || '#CBD5E1',
+          icon: mainCat?.icon || 'Tag',
           id: catId
         };
       }
@@ -208,7 +213,9 @@ export default function Dashboard() {
                 "text-2xl font-bold tracking-tight",
                 stats.balance >= 0 ? "text-emerald-500" : "text-rose-500"
               )}>
-                {settings?.hideBalance ? '••••••' : formatCurrency(stats.balance, settings?.currency)}
+                {settings?.hideBalance ? '••••••' : (
+                  <>{settings?.showSignSymbol !== false && (stats.balance >= 0 ? '+' : '-')}{formatCurrency(Math.abs(stats.balance), settings)}</>
+                )}
               </h2>
             </div>
             <div className="w-9 h-9 rounded-2xl bg-indigo-50 flex items-center justify-center border border-indigo-100/50">
@@ -223,7 +230,7 @@ export default function Dashboard() {
               </div>
               <div className="min-w-0">
                 <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wider leading-none mb-1">Income</p>
-                <p className="font-bold text-sm text-emerald-500 truncate">{formatCurrency(stats.income, settings?.currency)}</p>
+                <p className="font-bold text-sm text-emerald-500 truncate">{settings?.showSignSymbol !== false ? '+' : ''}{formatCurrency(stats.income, settings)}</p>
               </div>
             </Link>
             <Link to="/analytics?tab=expenses" className="flex items-center space-x-3 group active:scale-95 transition-transform">
@@ -232,7 +239,7 @@ export default function Dashboard() {
               </div>
               <div className="min-w-0">
                 <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wider leading-none mb-1">Expense</p>
-                <p className="font-bold text-sm text-rose-500 truncate">{formatCurrency(stats.expense, settings?.currency)}</p>
+                <p className="font-bold text-sm text-rose-500 truncate">{settings?.showSignSymbol !== false ? '-' : ''}{formatCurrency(stats.expense, settings)}</p>
               </div>
             </Link>
           </div>
@@ -269,7 +276,7 @@ export default function Dashboard() {
                     "font-bold text-sm leading-tight",
                     acc.currentBalance >= 0 ? "text-emerald-500" : "text-rose-500"
                   )}>
-                    {formatCurrency(acc.currentBalance, settings?.currency)}
+                    {settings?.showSignSymbol !== false && (acc.currentBalance >= 0 ? '+' : '-')}{formatCurrency(Math.abs(acc.currentBalance), settings)}
                   </p>
                 </div>
               </Link>
@@ -309,7 +316,7 @@ export default function Dashboard() {
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{chartType}</p>
                <p className="text-base font-bold text-gray-900 leading-tight flex items-center space-x-1">
-                 <span>{formatCurrency(totalType, settings?.currency)}</span>
+                 <span>{formatCurrency(totalType, settings)}</span>
                </p>
             </div>
             <ResponsiveContainer width="100%" height="100%" className="z-10">
@@ -354,7 +361,7 @@ export default function Dashboard() {
                 </Pie>
                 <RechartsTooltip 
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
-                  formatter={(value: number) => formatCurrency(value, settings?.currency)}
+                  formatter={(value: number) => formatCurrency(value, settings)}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -424,7 +431,7 @@ export default function Dashboard() {
                   parentCategory={pCat}
                   account={getAccount(t.accountId)}
                   toAccount={t.toAccountId ? getAccount(t.toAccountId) : undefined}
-                  currency={settings?.currency}
+                  settings={settings}
                 />
               );
             })

@@ -74,12 +74,24 @@ export async function initDefaultSettings() {
   if (!settings) {
     await db.settings.add({
       id: 1,
-      currency: 'USD',
+      currency: 'INR',
       isDarkMode: false,
       hideBalance: false,
       useFingerprint: false,
-      lastProcessedRecurring: new Date()
+      lastProcessedRecurring: new Date(),
+      numberFormat: 'in',
+      showDecimals: true,
+      showSignSymbol: true,
+      monthStartDate: 1
     });
+  } else {
+    // Add missing settings if updating from older version
+    let updated = false;
+    if (settings.numberFormat === undefined) { settings.numberFormat = 'in'; updated = true; }
+    if (settings.showDecimals === undefined) { settings.showDecimals = true; updated = true; }
+    if (settings.showSignSymbol === undefined) { settings.showSignSymbol = true; updated = true; }
+    if (settings.monthStartDate === undefined) { settings.monthStartDate = 1; updated = true; }
+    if (updated) await db.settings.put(settings);
   }
 }
 

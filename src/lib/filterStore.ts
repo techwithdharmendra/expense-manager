@@ -3,8 +3,8 @@ import { FilterState } from '../components/FilterSection';
 class FilterStore {
   private state: FilterState = {
     type: 'all',
-    accountId: 'all',
-    categoryId: 'all',
+    accountId: [],
+    categoryId: [],
     dateRange: 'month',
     startDate: '',
     endDate: '',

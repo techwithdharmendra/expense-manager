@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { formatCurrency, cn } from '../lib/utils';
+import { isSameMonthCycle } from '../lib/dateUtils';
 import { 
   Target as TargetIcon, 
   AlertCircle,
@@ -32,14 +33,15 @@ export default function Budget() {
   const [amount, setAmount] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string | number | null>(null);
 
+  const startDay = settings?.monthStartDate || 1;
+
   const budgetStats = useMemo(() => {
     if (!transactions || !budgets) return [];
     
-    // Get this month's transactions
+    // Get this month's transactions using startDay
     const now = new Date();
     const monthTransactions = transactions.filter(t => 
-      t.date.getMonth() === now.getMonth() && 
-      t.date.getFullYear() === now.getFullYear() &&
+      isSameMonthCycle(t.date, now, startDay) && 
       t.type === 'expense'
     );
 
@@ -211,7 +213,7 @@ export default function Budget() {
             <div className="space-y-2">
               <div className="flex justify-between items-end">
                 <p className="text-[10px] font-bold text-gray-400">
-                  <span className="text-gray-900">{formatCurrency(stat.spent, settings?.currency)}</span> / {formatCurrency(stat.limit, settings?.currency)}
+                  <span className="text-gray-900">{formatCurrency(stat.spent, settings)}</span> / {formatCurrency(stat.limit, settings)}
                 </p>
                 <p className={cn("text-[10px] font-bold", stat.percentage > 100 ? "text-red-500" : "text-indigo-600")}>
                   {Math.round(stat.percentage)}%

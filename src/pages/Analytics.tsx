@@ -3,7 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { formatCurrency, cn } from '../lib/utils';
-import { motion } from 'motion/react';
+import { getMonthCycleStartEnd, isSameMonthCycle, formatYMD } from '../lib/dateUtils';
+import { motion, AnimatePresence } from 'motion/react';
+import { useNavigate } from 'react-router-dom';
 import { 
   TrendingUp, 
   TrendingDown,
@@ -13,7 +15,11 @@ import {
   Tag,
   ArrowDownLeft,
   ArrowUpRight,
-  History
+  History,
+  BarChart2,
+  Calendar,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { 
   PieChart, 
@@ -38,13 +44,11 @@ import { filterStore } from '../lib/filterStore';
 type TabType = 'expenses' | 'income' | 'combined';
 
 export default function Analytics() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialTab = (searchParams.get('tab') as TabType) || 'combined';
-  const initialAccountId = searchParams.get('accountId') || 'all';
-  const initialCategoryId = searchParams.get('categoryId') || 'all';
-
-  const [trendView, setTrendView] = useState<'line' | 'bar'>('line');
-  const [compositionView, setCompositionView] = useState<'pie' | 'bar'>('pie');
+  const initialAccountId = searchParams.getAll('accountId');
+  const initialCategoryId = searchParams.getAll('categoryId');
 
   const [filters, setFilters] = useState<FilterState>(() => {
     const saved = filterStore.getState();
@@ -65,11 +69,81 @@ export default function Analytics() {
     return saved;
   });
 
+  const [trendView, setTrendView] = useState<'line' | 'bar'>('line');
+  const [compositionView, setCompositionView] = useState<'pie' | 'bar'>('pie');
+  const [selectedDetailedCategory, setSelectedDetailedCategory] = useState<any>(null);
+  const [selectedMonthDate, setSelectedMonthDate] = useState(() => new Date());
+  
+  const settings = useLiveQuery(() => db.settings.get(1));
+  const startDay = settings?.monthStartDate || 1;
+
+  const handlePrevMonth = () => {
+    setSelectedMonthDate(prev => {
+      const d = new Date(prev);
+      d.setMonth(d.getMonth() - 1);
+      const { start, end } = getMonthCycleStartEnd(d, startDay);
+      
+      const newFilters = {
+        ...filters,
+        dateRange: 'custom' as const,
+        startDate: formatYMD(start),
+        endDate: formatYMD(end)
+      };
+      setFilters(newFilters);
+      return d;
+    });
+  };
+
+  const handleNextMonth = () => {
+    setSelectedMonthDate(prev => {
+      const d = new Date(prev);
+      d.setMonth(d.getMonth() + 1);
+      const { start, end } = getMonthCycleStartEnd(d, startDay);
+      
+      const newFilters = {
+        ...filters,
+        dateRange: 'custom' as const,
+        startDate: formatYMD(start),
+        endDate: formatYMD(end)
+      };
+      setFilters(newFilters);
+      return d;
+    });
+  };
+
+  const isCustomMonth = useMemo(() => {
+    if (filters.dateRange !== 'custom' || !filters.startDate || !filters.endDate) return false;
+    const start = new Date(filters.startDate + 'T00:00:00');
+    const end = new Date(filters.endDate + 'T00:00:00');
+    
+    const cycle = getMonthCycleStartEnd(start, startDay);
+    return formatYMD(start) === formatYMD(cycle.start) && formatYMD(end) === formatYMD(cycle.end);
+  }, [filters.dateRange, filters.startDate, filters.endDate, startDay]);
+
+  useEffect(() => {
+    if (filters.dateRange === 'month') {
+      const now = new Date();
+      if (!isSameMonthCycle(now, selectedMonthDate, startDay)) {
+        setSelectedMonthDate(now);
+      }
+    }
+  }, [filters.dateRange, selectedMonthDate, startDay]);
+
+  // Sync selectedMonthDate when custom month is set from filters drawer
+  useEffect(() => {
+    if (isCustomMonth && filters.startDate) {
+      const d = new Date(filters.startDate + 'T00:00:00');
+      // to avoid infinite loops, check if it's different month/year
+      if (!isSameMonthCycle(d, selectedMonthDate, startDay)) {
+        setSelectedMonthDate(d);
+      }
+    }
+  }, [isCustomMonth, filters.startDate, selectedMonthDate, startDay]);
+
   const [limit, setLimit] = useState(50); // Optional limit for list rendering, though charts require all data
 
   const categoriesLive = useLiveQuery(() => db.categories.toArray()) || [];
   const accountsLive = useLiveQuery(() => db.accounts.toArray()) || [];
-  const settings = useLiveQuery(() => db.settings.get(1));
 
   const categories = useMemo(() => {
     return [...categoriesLive].sort((a,b) => (a.order || 0) - (b.order || 0));
@@ -102,34 +176,37 @@ export default function Analytics() {
     // Wait, let's just do a filter function which relies on Dexie iteration
     const result = await collection.filter(t => {
       const matchType = filters.type === 'all' ? true : filters.type === t.type;
-      const matchAccount = filters.accountId === 'all' || 
-                           Number(t.accountId) === Number(filters.accountId) ||
-                           (t.type === 'transfer' && Number(t.toAccountId) === Number(filters.accountId));
-      const matchCategory = filters.categoryId === 'all' || 
-                           Number(t.categoryId) === Number(filters.categoryId) ||
-                           Number(categories.find(c => Number(c.id) === Number(t.categoryId))?.parentId) === Number(filters.categoryId);
+      const matchAccount = filters.accountId.length === 0 || 
+                           filters.accountId.includes(String(t.accountId)) ||
+                           (t.type === 'transfer' && filters.accountId.includes(String(t.toAccountId)));
+      const matchCategory = filters.categoryId.length === 0 || 
+                           filters.categoryId.includes(String(t.categoryId)) ||
+                           (t.categoryId && categories.find(c => Number(c.id) === Number(t.categoryId))?.parentId !== undefined && filters.categoryId.includes(String(categories.find(c => Number(c.id) === Number(t.categoryId))?.parentId))) ||
+                           (t.type === 'transfer');
       
       const matchSearch = !filters.searchTerm || 
                          t.title.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
                          (t.note && t.note.toLowerCase().includes(filters.searchTerm.toLowerCase()));
 
       let matchDate = true;
-      const now = new Date();
+      const refDate = selectedMonthDate;
       const tDate = new Date(t.date);
 
       if (filters.dateRange === 'month') {
-        matchDate = tDate.getMonth() === now.getMonth() && tDate.getFullYear() === now.getFullYear();
+        matchDate = isSameMonthCycle(tDate, refDate, startDay);
       } else if (filters.dateRange === 'week') {
+        const now = new Date();
         const weekAgo = new Date();
         weekAgo.setDate(now.getDate() - 7);
         matchDate = tDate >= weekAgo;
       } else if (filters.dateRange === 'year') {
+        const now = new Date();
         matchDate = tDate.getFullYear() === now.getFullYear();
       } else if (filters.dateRange === 'custom') {
         if (filters.startDate && filters.endDate) {
-          const start = new Date(filters.startDate);
+          const start = new Date(filters.startDate + 'T00:00:00');
           start.setHours(0, 0, 0, 0);
-          const end = new Date(filters.endDate);
+          const end = new Date(filters.endDate + 'T00:00:00');
           end.setHours(23, 59, 59, 999);
           matchDate = tDate >= start && tDate <= end;
         }
@@ -139,7 +216,7 @@ export default function Analytics() {
     }).toArray();
     
     return result.sort((a,b) => b.date.getTime() - a.date.getTime() || (Number(b.id) - Number(a.id)));
-  }, [filters, categories], []);
+  }, [filters, categories, selectedMonthDate, startDay], []);
 
   const trendData = useMemo(() => {
     if (filteredTransactions.length === 0) return [];
@@ -164,22 +241,43 @@ export default function Analytics() {
   }, [filteredTransactions]);
 
   const catStats = useMemo(() => {
-    const stats: { [key: string]: { id: string, amount: number, color: string, name: string, type: string } } = {};
+    const stats: { [key: string]: { id: string, amount: number, color: string, name: string, type: string, subcategories: any[] } } = {};
     filteredTransactions.filter(t => t.type !== 'transfer').forEach(t => {
-      const cat = categories.find(c => String(c.id) === String(t.categoryId));
-      const catId = cat?.id?.toString() || 'unknown';
+      let cat = categories.find(c => String(c.id) === String(t.categoryId));
+      
+      let mainCat = cat;
+      if (cat && cat.parentId) {
+         mainCat = categories.find(c => String(c.id) === String(cat!.parentId)) || cat;
+      }
+      
+      const catId = mainCat?.id?.toString() || 'unknown';
       if (!stats[catId]) {
         stats[catId] = { 
           id: catId,
           amount: 0, 
-          color: cat?.color || '#cbd5e1', 
-          name: cat?.name || 'Unknown',
-          type: t.type
+          color: mainCat?.color || '#cbd5e1', 
+          name: mainCat?.name || 'Unknown',
+          type: t.type,
+          subcategories: []
         };
       }
       stats[catId].amount += t.amount;
+      
+      // Track subcategory breakdown
+      if (cat && cat.id !== mainCat?.id) {
+         let subCatStat = stats[catId].subcategories.find(sc => sc.id === cat!.id);
+         if (!subCatStat) {
+             subCatStat = { id: cat!.id, name: cat!.name, amount: 0, color: cat!.color, icon: cat!.icon };
+             stats[catId].subcategories.push(subCatStat);
+         }
+         subCatStat.amount += t.amount;
+      }
     });
-    return Object.values(stats).sort((a, b) => b.amount - a.amount);
+    const result = Object.values(stats).sort((a, b) => b.amount - a.amount);
+    result.forEach(stat => {
+        stat.subcategories.sort((a, b) => b.amount - a.amount);
+    });
+    return result;
   }, [filteredTransactions, categories]);
 
   const totalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
@@ -216,36 +314,68 @@ export default function Analytics() {
 
   const periodLabel = useMemo(() => {
     if (filters.dateRange === 'month') {
-      return new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      return selectedMonthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     } else if (filters.dateRange === 'week') {
       return 'This Week';
     } else if (filters.dateRange === 'year') {
       return new Date().toLocaleDateString('en-US', { year: 'numeric' });
     } else if (filters.dateRange === 'custom') {
       if (filters.startDate && filters.endDate) {
-         return `${new Date(filters.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(filters.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+         return `${new Date(filters.startDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(filters.endDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
       }
       return 'Custom Range';
     }
     return 'All Time';
-  }, [filters.dateRange, filters.startDate, filters.endDate]);
+  }, [filters.dateRange, filters.startDate, filters.endDate, selectedMonthDate]);
 
   const getCategory = (id: string | number) => categories?.find(c => String(c.id) === String(id));
   const getAccount = (id: string | number) => accounts?.find(a => String(a.id) === String(id));
 
   return (
     <div className="space-y-6 pb-6">
-      <div className="flex items-center justify-between px-1 mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Analytics</h1>
-        <FilterSection 
-          filters={filters}
-          onFilterChange={setFilters}
-          accounts={accounts}
-          categories={categories}
-          showTypeFilter={true}
-          excludeTransfer={true}
-          className="space-y-0"
-        />
+      <div className="mb-4 space-y-4">
+        <div className="flex items-center justify-between px-1">
+          {/* Left side: Calendar + Month or simply Analytics */}
+          {(filters.dateRange === 'month' || isCustomMonth) ? (
+            <div className="flex items-center space-x-2">
+              <Calendar className="w-5 h-5 text-gray-800" strokeWidth={2.5} />
+              <h1 className="text-lg font-bold text-gray-900 tracking-tight">
+                {selectedMonthDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+              </h1>
+            </div>
+          ) : (
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Analytics</h1>
+          )}
+          
+          {/* Right side: arrows and filter */}
+          <div className="flex items-center">
+            {(filters.dateRange === 'month' || isCustomMonth) && (
+              <div className="flex items-center space-x-0.5 mr-2">
+                <button 
+                  onClick={handlePrevMonth}
+                  className="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors active:scale-95"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button 
+                  onClick={handleNextMonth}
+                  className="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors active:scale-95"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+            )}
+            <FilterSection 
+              filters={filters}
+              onFilterChange={setFilters}
+              accounts={accounts}
+              categories={categories}
+              showTypeFilter={true}
+              excludeTransfer={true}
+              className="space-y-0"
+            />
+          </div>
+        </div>
       </div>
 
       {/* Summary Highlight - Updated to match Dashboard light theme */}
@@ -265,7 +395,7 @@ export default function Analytics() {
                     (filters.type === 'expense' || (filters.type === 'all' && totalAmount < 0)) ? "text-rose-500" : 
                     (filters.type === 'transfer' ? "text-blue-500" : "text-emerald-500")
                   )}>
-                    {formatCurrency(totalAmount, settings?.currency)}
+                    {formatCurrency(totalAmount, settings)}
                   </h2>
                </div>
                <div className={cn(
@@ -286,7 +416,7 @@ export default function Analytics() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wider leading-none mb-1">Income</p>
-                  <p className="font-bold text-sm text-emerald-500 truncate">{formatCurrency(totalIncome, settings?.currency)}</p>
+                  <p className="font-bold text-sm text-emerald-500 truncate">{settings?.showSignSymbol !== false ? '+' : ''}{formatCurrency(totalIncome, settings)}</p>
                 </div>
               </div>
               <div className="flex items-center space-x-3 group transition-transform">
@@ -295,7 +425,7 @@ export default function Analytics() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wider leading-none mb-1">Expense</p>
-                  <p className="font-bold text-sm text-rose-500 truncate">{formatCurrency(totalExpense, settings?.currency)}</p>
+                  <p className="font-bold text-sm text-rose-500 truncate">{settings?.showSignSymbol !== false ? '-' : ''}{formatCurrency(totalExpense, settings)}</p>
                 </div>
               </div>
             </div>
@@ -413,7 +543,10 @@ export default function Analytics() {
                        "text-xl font-bold leading-tight", 
                        (filters.type === 'expense' || (filters.type === 'all' && (totalIncome - totalExpense) < 0)) ? "text-rose-500" : "text-emerald-500"
                      )}>
-                       {(filters.type === 'expense' || filters.type === 'income') ? formatCurrency(totalAmount, settings?.currency) : formatCurrency(totalIncome - totalExpense, settings?.currency)}
+                       {settings?.showSignSymbol !== false && filters.type === 'expense' && '-' }
+                       {settings?.showSignSymbol !== false && filters.type === 'income' && '+' }
+                       {settings?.showSignSymbol !== false && filters.type === 'all' && (totalIncome - totalExpense >= 0 ? '+' : '-')}
+                       {(filters.type === 'expense' || filters.type === 'income') ? formatCurrency(totalAmount, settings) : formatCurrency(Math.abs(totalIncome - totalExpense), settings)}
                      </p>
                   </div>
                 )}
@@ -460,7 +593,7 @@ export default function Analytics() {
                       </Pie>
                       <Tooltip 
                         contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                        formatter={(value: number) => formatCurrency(value, settings?.currency)}
+                        formatter={(value: number) => formatCurrency(value, settings)}
                       />
                     </PieChart>
                   ) : (
@@ -476,7 +609,7 @@ export default function Analytics() {
                        />
                        <Tooltip 
                         contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                        formatter={(value: number) => formatCurrency(value, settings?.currency)}
+                        formatter={(value: number) => formatCurrency(value, settings)}
                        />
                        <Bar dataKey="amount" radius={[0, 4, 4, 0]}>
                          {catStats.map((entry, index) => (
@@ -495,11 +628,8 @@ export default function Analytics() {
             {catStats.length > 0 ? catStats.map((stat, i) => (
                <div 
                 key={i} 
-                onClick={() => setFilters(prev => ({ ...prev, categoryId: stat.id }))}
-                className={cn(
-                  "bg-white rounded-xl p-5 shadow-sm border border-gray-50 flex items-center justify-between group cursor-pointer transition-all active:scale-95",
-                  filters.categoryId === stat.id && "ring-2 ring-indigo-500 ring-offset-2"
-                )}
+                onClick={() => setSelectedDetailedCategory(stat)}
+                className="bg-white rounded-xl p-5 shadow-sm border border-gray-50 flex items-center justify-between group cursor-pointer transition-all active:scale-95"
                >
                   <div className="flex items-center space-x-4">
                      <div 
@@ -519,7 +649,7 @@ export default function Analytics() {
                      <p className={cn(
                        "font-bold text-sm",
                        stat.type === 'income' ? "text-emerald-500" : "text-rose-500"
-                     )}>{formatCurrency(stat.amount, settings?.currency)}</p>
+                     )}>{formatCurrency(stat.amount, settings)}</p>
                      <div className="w-20 h-1 mt-1.5 bg-gray-50 rounded-full overflow-hidden">
                         <div 
                           className="h-full rounded-full" 
@@ -540,6 +670,119 @@ export default function Analytics() {
         )}
       </div>
 
+      {/* Subcategories Details Modal */}
+      <AnimatePresence>
+        {selectedDetailedCategory && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedDetailedCategory(null)}
+              className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-40"
+            />
+            <motion.div
+              initial={{ opacity: 0, y: '100%' }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="fixed inset-x-0 bottom-0 bg-white rounded-t-3xl z-50 overflow-hidden shadow-2xl pb-safe flex flex-col max-h-[85vh] sm:max-w-md sm:mx-auto sm:h-auto border border-gray-100"
+            >
+              <div className="p-5 pb-4 border-b border-gray-50 flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                   <div 
+                    className="w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-sm"
+                    style={{ backgroundColor: selectedDetailedCategory.color }}
+                   >
+                     <Tag className="w-5 h-5" />
+                   </div>
+                   <div>
+                     <h2 className="text-lg font-bold text-gray-900 tracking-tight leading-none">{selectedDetailedCategory.name}</h2>
+                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">{selectedDetailedCategory.type}</p>
+                   </div>
+                </div>
+                <button 
+                  onClick={() => setSelectedDetailedCategory(null)}
+                  className="w-8 h-8 rounded-full bg-gray-50 text-gray-600 flex items-center justify-center active:scale-95 transition-transform"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="p-5 overflow-y-auto">
+                <div className="mb-4 flex items-center justify-between pb-4 border-b border-gray-50">
+                   <div>
+                     <p className="text-sm font-bold text-gray-700 tracking-tight">{selectedDetailedCategory.type === 'income' ? 'Total Income' : 'Total Expense'}</p>
+                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">{periodLabel}</p>
+                   </div>
+                   <div className="text-right">
+                     <p className={cn(
+                       "text-xl font-bold leading-none tracking-tight",
+                       selectedDetailedCategory.type === 'income' ? 'text-emerald-500' : 'text-rose-500'
+                     )}>
+                       {formatCurrency(selectedDetailedCategory.amount, settings)}
+                     </p>
+                   </div>
+                </div>
+
+                {selectedDetailedCategory.subcategories.length > 0 && (
+                  <div className="space-y-4">
+                    <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Subcategories</h3>
+                    {selectedDetailedCategory.subcategories.map((sub: any, i: number) => (
+                      <div key={i} className="flex flex-col space-y-2">
+                        <div className="flex items-center justify-between">
+                           <div className="flex items-center space-x-3">
+                             <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs" style={{ backgroundColor: sub.color || selectedDetailedCategory.color }}>
+                                <Tag className="w-4 h-4" />
+                             </div>
+                             <span className="font-bold text-sm text-gray-700">{sub.name}</span>
+                           </div>
+                           <div className="text-right">
+                              <span className="font-bold text-sm text-gray-900">{formatCurrency(sub.amount, settings)}</span>
+                              <p className="text-[10px] text-gray-400 font-bold mt-0.5">{((sub.amount / selectedDetailedCategory.amount) * 100).toFixed(0)}%</p>
+                           </div>
+                        </div>
+                        <div className="w-full h-1.5 bg-gray-50 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full rounded-full" 
+                            style={{ 
+                              width: `${(sub.amount / selectedDetailedCategory.amount) * 100}%`, 
+                              backgroundColor: sub.color || selectedDetailedCategory.color 
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="mt-6 flex justify-end space-x-3">
+                   <button 
+                     onClick={() => {
+                        setFilters(prev => ({ ...prev, categoryId: [String(selectedDetailedCategory.id)] }));
+                        setSelectedDetailedCategory(null);
+                     }}
+                     className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center hover:bg-indigo-100 transition-colors active:scale-95"
+                   >
+                     <BarChart2 className="w-5 h-5" />
+                   </button>
+                   <button 
+                     onClick={() => {
+                        filterStore.setState({ ...filters, categoryId: [String(selectedDetailedCategory.id)] });
+                        setSelectedDetailedCategory(null);
+                        navigate('/transactions');
+                     }}
+                     className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-100 transition-colors active:scale-95"
+                   >
+                     <History className="w-5 h-5" />
+                   </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* Averages Section */}
       {averages && (
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-50 flex flex-col space-y-4">
@@ -557,8 +800,8 @@ export default function Analytics() {
               <div key={i} className="flex items-center justify-between">
                 <span className="text-base text-gray-600 font-medium">{avg.label}</span>
                 <div className="flex space-x-6 text-right font-medium text-base">
-                  <span className="text-emerald-500 w-24 truncate" title={formatCurrency(avg.data.income, settings?.currency)}>{formatCurrency(avg.data.income, settings?.currency)}</span>
-                  <span className="text-rose-500 w-24 truncate" title={formatCurrency(avg.data.expense, settings?.currency)}>{formatCurrency(avg.data.expense, settings?.currency)}</span>
+                  <span className="text-emerald-500 w-24 truncate" title={formatCurrency(avg.data.income, settings)}>{formatCurrency(avg.data.income, settings)}</span>
+                  <span className="text-rose-500 w-24 truncate" title={formatCurrency(avg.data.expense, settings)}>{formatCurrency(avg.data.expense, settings)}</span>
                 </div>
               </div>
             ))}
@@ -582,7 +825,7 @@ export default function Analytics() {
                   parentCategory={pCat}
                   account={getAccount(t.accountId)}
                   toAccount={t.toAccountId ? getAccount(t.toAccountId) : undefined}
-                  currency={settings?.currency}
+                  settings={settings}
                 />
               );
             })

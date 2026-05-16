@@ -1,21 +1,20 @@
 
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, resetWithSampleData } from '../db';
+import { db } from '../db';
+import { filterStore } from '../lib/filterStore';
 import { 
   Download, 
-  Upload, 
+  Upload,
   EyeOff, 
   Eye, 
   Coins, 
   Trash2, 
   ChevronRight,
   Moon,
-  FileJson,
   FileSpreadsheet,
   Wallet,
-  Tag,
-  RotateCcw
+  Tag
 } from 'lucide-react';
 import { cn, formatCurrency } from '../lib/utils';
 import { motion } from 'motion/react';
@@ -23,10 +22,13 @@ import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import ConfirmDialog from '../components/ConfirmDialog';
 
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+
 export default function Settings() {
   const settings = useLiveQuery(() => db.settings.get(1));
   const [confirmClear, setConfirmClear] = useState(false);
-  const [confirmReset, setConfirmReset] = useState(false);
   const [importPending, setImportPending] = useState<any>(null);
 
   const toggleHideBalance = async () => {
@@ -45,26 +47,53 @@ export default function Settings() {
 
   const exportData = async () => {
     try {
-      const transactions = await db.transactions.toArray();
-      const categories = await db.categories.toArray();
-      const budgets = await db.budgets.toArray();
-      const accounts = await db.accounts.toArray();
+      const [transactions, categories, budgets, accounts, settingsData] = await Promise.all([
+        db.transactions.toArray(),
+        db.categories.toArray(),
+        db.budgets.toArray(),
+        db.accounts.toArray(),
+        db.settings.get(1)
+      ]);
       
-      const data = { transactions, categories, budgets, accounts, settings };
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `expenseflow_backup_${new Date().toISOString().split('T')[0]}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const data = { 
+        version: 1,
+        transactions, 
+        categories, 
+        budgets, 
+        accounts, 
+        settings: settingsData,
+        exportedAt: new Date().toISOString()
+      };
+      const jsonData = JSON.stringify(data, null, 2);
+      const fileName = `expenseflow_backup_${new Date().toISOString().split('T')[0]}.json`;
+
+      if (Capacitor.isNativePlatform()) {
+        const result = await Filesystem.writeFile({
+          path: fileName,
+          data: jsonData,
+          directory: Directory.Documents,
+          encoding: Encoding.UTF8,
+        });
+        await Share.share({
+          title: 'Export Backup',
+          text: 'Here is your backup file',
+          url: result.uri,
+        });
+      } else {
+        const blob = new Blob([jsonData], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
       toast.success('Backup exported successfully');
     } catch (err) {
       toast.error('Export failed');
     }
   };
-  
+
   const exportCSV = async () => {
      try {
        const transactions = await db.transactions.toArray();
@@ -76,67 +105,34 @@ export default function Settings() {
          csv += `${t.date.toISOString()},"${t.title}",${t.type},"${cat?.name || ''}",${t.amount},"${t.note || ''}"\n`;
        });
        
-       const blob = new Blob([csv], { type: 'text/csv' });
-       const url = URL.createObjectURL(blob);
-       const a = document.createElement('a');
-       a.href = url;
-       a.download = `expenses_${new Date().toISOString().split('T')[0]}.csv`;
-       a.click();
-       URL.revokeObjectURL(url);
+       const fileName = `expenses_${new Date().toISOString().split('T')[0]}.csv`;
+
+       if (Capacitor.isNativePlatform()) {
+         const result = await Filesystem.writeFile({
+            path: fileName,
+            data: csv,
+            directory: Directory.Documents,
+            encoding: Encoding.UTF8,
+         });
+         await Share.share({
+            title: 'Export Transactions',
+            text: 'Here are your transactions',
+            url: result.uri,
+         });
+       } else {
+         const blob = new Blob([csv], { type: 'text/csv' });
+         const url = URL.createObjectURL(blob);
+         const a = document.createElement('a');
+         a.href = url;
+         a.download = fileName;
+         a.click();
+         URL.revokeObjectURL(url);
+       }
        toast.success('CSV exported successfully');
      } catch (err) {
        toast.error('CSV export failed');
      }
   }
-
-  const importData = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const data = JSON.parse(event.target?.result as string);
-        if (data.transactions) {
-           setImportPending(data);
-        } else {
-          toast.error('Invalid backup file structure');
-        }
-      } catch (err) {
-        toast.error('Invalid JSON file');
-      }
-    };
-    reader.readAsText(file);
-    // Reset input
-    e.target.value = '';
-  };
-
-  const handleConfirmImport = async () => {
-    if (!importPending) return;
-    try {
-      await db.transactions.clear();
-      await db.categories.clear();
-      await db.budgets.clear();
-      await db.accounts.clear();
-      
-      const transactions = importPending.transactions.map((t: any) => ({
-        ...t,
-        date: new Date(t.date)
-      }));
-      
-      await db.transactions.bulkAdd(transactions);
-      await db.categories.bulkAdd(importPending.categories);
-      await db.budgets.bulkAdd(importPending.budgets || []);
-      await db.accounts.bulkAdd(importPending.accounts || []);
-      
-      toast.success('Import successful. Reloading...');
-      setTimeout(() => window.location.reload(), 1500);
-    } catch (err) {
-      toast.error('Import failed during database write');
-    } finally {
-      setImportPending(null);
-    }
-  };
 
   const handleClearData = async () => {
     try {
@@ -156,15 +152,66 @@ export default function Settings() {
     }
   };
 
-  const handleConfirmReset = async () => {
+  const importData = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.json')) {
+      toast.error('Please select a JSON backup file (not CSV)');
+      e.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string);
+        // Check for at least one major data key
+        if (data && (data.transactions || data.categories || data.accounts)) {
+           setImportPending(data);
+        } else {
+          toast.error('Invalid backup file structure: Missing data');
+        }
+      } catch (err) {
+        toast.error('Invalid file: Not a valid JSON format');
+      }
+    };
+    reader.readAsText(file);
+    // Reset input
+    e.target.value = '';
+  };
+
+  const handleConfirmImport = async () => {
+    if (!importPending) return;
     try {
-      await resetWithSampleData();
-      toast.success('Sample data loaded');
-      setTimeout(() => window.location.reload(), 1000);
+      await Promise.all([
+        db.transactions.clear(),
+        db.categories.clear(),
+        db.budgets.clear(),
+        db.accounts.clear(),
+        db.settings.clear()
+      ]);
+      
+      const transactions = (importPending.transactions || []).map((t: any) => ({
+        ...t,
+        date: new Date(t.date)
+      }));
+      
+      if (transactions.length > 0) await db.transactions.bulkAdd(transactions);
+      if (importPending.categories?.length > 0) await db.categories.bulkAdd(importPending.categories);
+      if (importPending.budgets?.length > 0) await db.budgets.bulkAdd(importPending.budgets);
+      if (importPending.accounts?.length > 0) await db.accounts.bulkAdd(importPending.accounts);
+      if (importPending.settings) {
+        await db.settings.put(importPending.settings);
+      }
+      
+      toast.success('Backup restored successfully. Reloading...');
+      setTimeout(() => window.location.reload(), 1500);
     } catch (err) {
-      toast.error('Reset failed');
+      console.error('Import error:', err);
+      toast.error('Import failed during database write');
     } finally {
-      setConfirmReset(false);
+      setImportPending(null);
     }
   };
 
@@ -179,14 +226,7 @@ export default function Settings() {
         onConfirm={handleClearData}
         onCancel={() => setConfirmClear(false)}
       />
-      <ConfirmDialog 
-        isOpen={confirmReset}
-        title="Reset to Sample?"
-        message="Current data will be replaced with sample data for exploration."
-        confirmText="Reset Now"
-        onConfirm={handleConfirmReset}
-        onCancel={() => setConfirmReset(false)}
-      />
+
       <ConfirmDialog 
         isOpen={!!importPending}
         title="Import Data?"
@@ -261,23 +301,123 @@ export default function Settings() {
             </button>
           </div>
 
-          <div className="flex items-center justify-between p-4">
+          <div className="flex items-center justify-between p-4 border-b border-gray-50">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center">
                 <Coins className="w-5 h-5" />
               </div>
-              <p className="text-sm font-bold text-gray-700">Currency</p>
+              <div>
+                <p className="text-sm font-bold text-gray-700">Currency</p>
+                <p className="text-[10px] text-gray-400 font-medium">Primary money formatting</p>
+              </div>
             </div>
             <select 
-              value={settings?.currency}
+              value={settings?.currency || 'INR'}
               onChange={e => changeCurrency(e.target.value)}
-              className="text-sm font-bold text-indigo-600 focus:outline-none bg-transparent"
+              className="text-sm font-bold text-indigo-600 focus:outline-none bg-transparent whitespace-nowrap px-1"
             >
+              <option value="INR">INR (₹)</option>
               <option value="USD">USD ($)</option>
               <option value="EUR">EUR (€)</option>
               <option value="GBP">GBP (£)</option>
-              <option value="INR">INR (₹)</option>
               <option value="JPY">JPY (¥)</option>
+            </select>
+          </div>
+
+          <div className="flex items-center justify-between p-4 border-b border-gray-50">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg font-bold font-mono">
+                $
+              </div>
+              <div>
+                <p className="text-sm font-bold text-gray-700">Number Format</p>
+                <p className="text-[10px] text-gray-400 font-medium">Comma & dot style</p>
+              </div>
+            </div>
+            <select 
+              value={settings?.numberFormat || 'in'}
+              onChange={e => db.settings.update(1, { numberFormat: e.target.value as any })}
+              className="text-sm font-bold text-indigo-600 focus:outline-none bg-transparent whitespace-nowrap px-1"
+            >
+              <option value="in">Indian (1,23,456.78)</option>
+              <option value="us">US (1,234.56)</option>
+              <option value="eu">European (1.234,56)</option>
+            </select>
+          </div>
+
+          <div className="flex items-center justify-between p-4 border-b border-gray-50">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-sm font-bold font-mono">
+                .00
+              </div>
+              <div>
+                <p className="text-sm font-bold text-gray-700">Show Decimals</p>
+                <p className="text-[10px] text-gray-400 font-medium">Show points after zero</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => db.settings.update(1, { showDecimals: settings?.showDecimals === false ? true : false })}
+              className={cn(
+                "w-12 h-6 rounded-full transition-colors relative shrink-0",
+                settings?.showDecimals !== false ? "bg-indigo-600" : "bg-gray-200"
+              )}
+            >
+              <div className={cn(
+                "absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-sm",
+                settings?.showDecimals !== false ? "left-7" : "left-1"
+              )} />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between p-4 border-b border-gray-50">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center pb-1 text-lg font-bold font-mono">
+                ±
+              </div>
+              <div>
+                <p className="text-sm font-bold text-gray-700">Show Sign (+ / -)</p>
+                <p className="text-[10px] text-gray-400 font-medium">Income +$ / Expense -$</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => db.settings.update(1, { showSignSymbol: settings?.showSignSymbol === false ? true : false })}
+              className={cn(
+                "w-12 h-6 rounded-full transition-colors relative shrink-0",
+                settings?.showSignSymbol !== false ? "bg-indigo-600" : "bg-gray-200"
+              )}
+            >
+              <div className={cn(
+                "absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-sm",
+                settings?.showSignSymbol !== false ? "left-7" : "left-1"
+              )} />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between p-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-2xl bg-cyan-50 text-cyan-600 flex items-center justify-center text-sm font-bold">
+                M
+              </div>
+              <div>
+                <p className="text-sm font-bold text-gray-700">Month Start Date</p>
+                <p className="text-[10px] text-gray-400 font-medium">Day a new month cycle begins</p>
+              </div>
+            </div>
+            <select 
+              value={settings?.monthStartDate || 1}
+              onChange={e => {
+                const newDay = parseInt(e.target.value);
+                db.settings.update(1, { monthStartDate: newDay });
+                const currentFilters = filterStore.getState();
+                if (currentFilters.dateRange === 'custom') {
+                  filterStore.setState({ ...currentFilters, dateRange: 'month' });
+                }
+              }}
+              className="text-sm font-bold text-indigo-600 focus:outline-none bg-transparent text-right"
+            >
+              {Array.from({length: 28}, (_, i) => i + 1).map(day => (
+                 <option key={day} value={day}>{day}</option>
+              ))}
             </select>
           </div>
         </div>
@@ -287,19 +427,6 @@ export default function Settings() {
       <section className="space-y-3">
         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Data & Backup</h3>
         <div className="bg-white rounded-2xl p-1 shadow-sm border border-gray-50 flex flex-col">
-          <button onClick={exportData} className="flex w-full items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                <FileJson className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-gray-700 text-left">Internal Backup (JSON)</p>
-                <p className="text-[10px] text-gray-400 font-medium">Complete app data dump for restore</p>
-              </div>
-            </div>
-            <Download className="w-4 h-4 text-gray-300" />
-          </button>
-
           <button onClick={exportCSV} className="flex w-full items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
@@ -312,7 +439,19 @@ export default function Settings() {
             </div>
             <Download className="w-4 h-4 text-emerald-300" />
           </button>
-          
+
+          <button onClick={exportData} className="flex w-full items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                <Download className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-gray-700 text-left">Backup Data (JSON)</p>
+                <p className="text-[10px] text-gray-400 font-medium">Create a restorable backup file</p>
+              </div>
+            </div>
+          </button>
+
           <label className="flex w-full items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50 cursor-pointer">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center">
@@ -325,19 +464,7 @@ export default function Settings() {
             </div>
             <input type="file" accept=".json" onChange={importData} className="hidden" />
           </label>
-
-          <button onClick={() => setConfirmReset(true)} className="flex w-full items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                <RotateCcw className="w-5 h-5" />
-              </div>
-              <div className="text-left">
-                <p className="text-sm font-bold text-gray-700">Reset with Sample Data</p>
-                <p className="text-[10px] text-gray-400 font-medium whitespace-nowrap">Clear app and load test data</p>
-              </div>
-            </div>
-          </button>
-
+          
           <button onClick={() => setConfirmClear(true)} className="flex w-full items-center justify-between p-4 text-red-500 active:bg-red-50 w-full text-left">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-2xl bg-red-50 flex items-center justify-center text-red-500">

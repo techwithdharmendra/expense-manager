@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Wallet } from 'lucide-react';
+import { Wallet, Paperclip } from 'lucide-react';
 import { Transaction, Category, Account } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { getIconByName } from '../lib/icons';
@@ -13,7 +13,7 @@ interface TransactionItemProps {
   parentCategory?: Category;
   account?: Account;
   toAccount?: Account;
-  currency?: string;
+  settings?: any;
   showDate?: boolean;
 }
 
@@ -23,18 +23,19 @@ export default function TransactionItem({
   parentCategory,
   account, 
   toAccount,
-  currency,
+  settings,
   showDate = true
 }: TransactionItemProps) {
   const navigate = useNavigate();
   const IconComp = getIconByName(category?.icon || 'Tag');
   const TransferIcon = getIconByName('ArrowRight');
+  const showSignSymbol = settings?.showSignSymbol !== false;
 
   return (
     <motion.div 
       layout
       onClick={() => navigate(`/edit/${transaction.id}`)}
-      className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-50 shadow-sm active:bg-gray-100 transition-all cursor-pointer group hover:border-indigo-100"
+      className="flex items-center justify-between px-3.5 py-2.5 bg-white rounded-[16px] border border-gray-50 shadow-xs active:bg-gray-100 transition-all cursor-pointer group hover:border-indigo-100"
     >
       <div className="flex items-center space-x-3 overflow-hidden">
         <div 
@@ -50,7 +51,10 @@ export default function TransactionItem({
           )}
         </div>
         <div className="min-w-0">
-          <h4 className="font-semibold text-sm text-gray-900 truncate">{transaction.title}</h4>
+          <div className="flex items-center space-x-1.5">
+            <h4 className="font-semibold text-sm text-gray-900 truncate">{transaction.title}</h4>
+            {transaction.attachment && <Paperclip className="w-3 h-3 text-indigo-400 shrink-0" />}
+          </div>
           <div className="flex flex-col space-y-0.5">
             <p className="text-[9px] text-gray-400 uppercase font-medium tracking-tight truncate">
               {transaction.type === 'transfer' 
@@ -71,7 +75,7 @@ export default function TransactionItem({
           transaction.type === 'income' ? "text-emerald-500" : 
           transaction.type === 'expense' ? "text-rose-500" : "text-blue-500"
         )}>
-          {transaction.type === 'income' ? '+' : transaction.type === 'expense' ? '-' : ''}{formatCurrency(transaction.amount, currency)}
+          {showSignSymbol && (transaction.type === 'income' ? '+' : transaction.type === 'expense' ? '-' : '')}{formatCurrency(transaction.amount, settings)}
         </div>
         {transaction.type === 'transfer' ? (
           <div className="flex items-center space-x-1 mt-1 px-1.5 py-0.5 rounded-full bg-blue-50 border border-blue-100 flex-shrink-0 max-w-[140px]">

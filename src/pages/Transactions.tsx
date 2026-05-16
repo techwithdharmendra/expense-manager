@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { formatCurrency, cn } from '../lib/utils';
+import { getMonthCycleStartEnd, isSameMonthCycle, formatYMD } from '../lib/dateUtils';
 import { 
   Search, 
   Filter, 
@@ -15,7 +16,10 @@ import {
   X,
   History as HistoryIcon,
   RefreshCcw,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Calendar,
+  ChevronLeft,
+  Sigma
 } from 'lucide-react';
 import { Transaction } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -27,16 +31,83 @@ import { filterStore } from '../lib/filterStore';
 export default function Transactions() {
   const navigate = useNavigate();
   const [filters, setFilters] = useState<FilterState>(() => filterStore.getState());
+  const [selectedMonthDate, setSelectedMonthDate] = useState(() => new Date());
 
+  const settings = useLiveQuery(() => db.settings.get(1));
+  const startDay = settings?.monthStartDate || 1;
+
+  const handlePrevMonth = () => {
+    setSelectedMonthDate(prev => {
+      const d = new Date(prev);
+      d.setMonth(d.getMonth() - 1);
+      const { start, end } = getMonthCycleStartEnd(d, startDay);
+      
+      const newFilters = {
+        ...filters,
+        dateRange: 'custom' as const,
+        startDate: formatYMD(start),
+        endDate: formatYMD(end)
+      };
+      setFilters(newFilters);
+      return d;
+    });
+  };
+
+  const handleNextMonth = () => {
+    setSelectedMonthDate(prev => {
+      const d = new Date(prev);
+      d.setMonth(d.getMonth() + 1);
+      const { start, end } = getMonthCycleStartEnd(d, startDay);
+      
+      const newFilters = {
+        ...filters,
+        dateRange: 'custom' as const,
+        startDate: formatYMD(start),
+        endDate: formatYMD(end)
+      };
+      setFilters(newFilters);
+      return d;
+    });
+  };
+
+  // Sync with global store when filters change
   useEffect(() => {
     filterStore.setState(filters);
   }, [filters]);
+
+  const isCustomMonth = useMemo(() => {
+    if (filters.dateRange !== 'custom' || !filters.startDate || !filters.endDate) return false;
+    const start = new Date(filters.startDate + 'T00:00:00');
+    const end = new Date(filters.endDate + 'T00:00:00');
+    
+    // Use the reference date from the start
+    const cycle = getMonthCycleStartEnd(start, startDay);
+    return formatYMD(start) === formatYMD(cycle.start) && formatYMD(end) === formatYMD(cycle.end);
+  }, [filters.dateRange, filters.startDate, filters.endDate, startDay]);
+
+  useEffect(() => {
+    if (filters.dateRange === 'month') {
+      const now = new Date();
+      if (!isSameMonthCycle(now, selectedMonthDate, startDay)) {
+        setSelectedMonthDate(now);
+      }
+    }
+  }, [filters.dateRange, selectedMonthDate, startDay]);
+
+  // Sync selectedMonthDate when custom month is set from filters drawer
+  useEffect(() => {
+    if (isCustomMonth && filters.startDate) {
+      const d = new Date(filters.startDate + 'T00:00:00');
+      if (!isSameMonthCycle(d, selectedMonthDate, startDay)) {
+        setSelectedMonthDate(d);
+      }
+    }
+  }, [isCustomMonth, filters.startDate, selectedMonthDate, startDay]);
 
   const [limit, setLimit] = useState(50);
 
   const categoriesLive = useLiveQuery(() => db.categories.toArray());
   const accountsLive = useLiveQuery(() => db.accounts.toArray());
-  const settings = useLiveQuery(() => db.settings.get(1));
 
   const categories = useMemo(() => {
     return categoriesLive ? [...categoriesLive].sort((a,b) => (a.order || 0) - (b.order || 0)) : undefined;
@@ -57,26 +128,26 @@ export default function Transactions() {
         if (filters.type !== 'all' && t.type !== filters.type) return false;
         
         // Account filter
-        if (filters.accountId !== 'all') {
-          const accMatch = Number(t.accountId) === Number(filters.accountId) || 
-                          (t.type === 'transfer' && Number(t.toAccountId) === Number(filters.accountId));
+        if (filters.accountId.length > 0) {
+          const accMatch = filters.accountId.includes(String(t.accountId)) || 
+                          (t.type === 'transfer' && filters.accountId.includes(String(t.toAccountId)));
           if (!accMatch) return false;
         }
         
         // Category filter
-        if (filters.categoryId !== 'all') {
+        if (filters.categoryId.length > 0) {
           const catId = Number(t.categoryId);
-          const selectedId = Number(filters.categoryId);
           const category = categories.find(c => Number(c.id) === catId);
-          const isMatch = catId === selectedId || Number(category?.parentId) === selectedId;
+          const isMatch = filters.categoryId.includes(String(catId)) || (category?.parentId !== undefined && filters.categoryId.includes(String(category.parentId)));
           if (!isMatch) return false;
         }
         
         // Date filter
         const tDate = new Date(t.date);
         const now = new Date();
+        const refDate = selectedMonthDate;
         if (filters.dateRange === 'month') {
-          if (tDate.getMonth() !== now.getMonth() || tDate.getFullYear() !== now.getFullYear()) return false;
+          if (!isSameMonthCycle(tDate, refDate, startDay)) return false;
         } else if (filters.dateRange === 'week') {
           const weekAgo = new Date();
           weekAgo.setDate(now.getDate() - 7);
@@ -84,9 +155,9 @@ export default function Transactions() {
         } else if (filters.dateRange === 'year') {
           if (tDate.getFullYear() !== now.getFullYear()) return false;
         } else if (filters.dateRange === 'custom' && filters.startDate && filters.endDate) {
-          const start = new Date(filters.startDate);
+          const start = new Date(filters.startDate + 'T00:00:00');
           start.setHours(0, 0, 0, 0);
-          const end = new Date(filters.endDate);
+          const end = new Date(filters.endDate + 'T00:00:00');
           end.setHours(23, 59, 59, 999);
           if (tDate < start || tDate > end) return false;
         }
@@ -105,7 +176,7 @@ export default function Transactions() {
       // Dexie limits cursors, but we should double check sort since we reversed on date
       return result.sort((a, b) => b.date.getTime() - a.date.getTime() || (Number(b.id) - Number(a.id)));
     },
-    [filters, categories, limit],
+    [filters, categories, limit, selectedMonthDate, startDay],
     []
   );
 
@@ -130,45 +201,123 @@ export default function Transactions() {
     return groups;
   }, [filteredTransactions]);
 
+  const monthTotals = useMemo(() => {
+    let income = 0;
+    let expense = 0;
+    filteredTransactions.forEach(t => {
+      if (t.type === 'income') income += t.amount;
+      else if (t.type === 'expense') expense += t.amount;
+    });
+    return { income, expense, balance: income - expense };
+  }, [filteredTransactions]);
+
   return (
     <div className="space-y-6 pb-6">
-      <div className="flex items-center justify-between px-1 mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Transactions</h1>
-        
-        <FilterSection 
-          filters={filters}
-          onFilterChange={setFilters}
-          accounts={accounts || []}
-          categories={categories || []}
-          showSearch={true}
-          className="space-y-0"
-        />
-      </div>
+      <div className="mb-4 space-y-4">
+        <div className="flex items-center justify-between px-1">
+          {/* Left side: Calendar + Month or simply Transactions */}
+          {(filters.dateRange === 'month' || isCustomMonth) ? (
+            <div className="flex items-center space-x-2">
+              <Calendar className="w-5 h-5 text-gray-800" strokeWidth={2.5} />
+              <h1 className="text-lg font-bold text-gray-900 tracking-tight">
+                {selectedMonthDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+              </h1>
+            </div>
+          ) : (
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Transactions</h1>
+          )}
+          
+          {/* Right side: arrows and filter */}
+          <div className="flex items-center">
+            {(filters.dateRange === 'month' || isCustomMonth) && (
+              <div className="flex items-center space-x-0.5 mr-2">
+                <button 
+                  onClick={handlePrevMonth}
+                  className="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors active:scale-95"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button 
+                  onClick={handleNextMonth}
+                  className="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors active:scale-95"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+            )}
+            <FilterSection 
+              filters={filters}
+              onFilterChange={setFilters}
+              accounts={accounts || []}
+              categories={categories || []}
+              showSearch={true}
+              className="space-y-0"
+            />
+          </div>
+        </div>
 
-        <div className="space-y-8">
-          {groupedTransactions.map((group) => (
-            <div key={group.date} className="space-y-4">
-            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">{group.date}</h3>
-            <div className="space-y-3">
-                {group.items.map((t) => {
-                  const cat = getCategory(t.categoryId);
-                  const pCat = cat?.parentId ? getCategory(cat.parentId) : undefined;
-                  return (
-                    <TransactionItem 
-                      key={t.id} 
-                      transaction={t} 
-                      category={cat}
-                      parentCategory={pCat}
-                      account={getAccount(t.accountId)}
-                      toAccount={t.toAccountId ? getAccount(t.toAccountId) : undefined}
-                      currency={settings?.currency}
-                      showDate={false}
-                    />
-                  );
-                })}
+        {(filters.dateRange === 'month' || isCustomMonth) && (
+          <div className="flex items-center justify-between px-2 pt-1">
+            <div className="text-emerald-500 font-medium tracking-tight">
+              {formatCurrency(monthTotals.income, settings)}
+            </div>
+            <div className="text-rose-500 font-medium tracking-tight">
+              {formatCurrency(monthTotals.expense, settings)}
+            </div>
+            <div className={cn(
+              "font-medium tracking-tight flex items-center space-x-0.5",
+              monthTotals.balance >= 0 ? "text-emerald-500" : "text-rose-500"
+            )}>
+              <Sigma className="w-4 h-4" />
+              <span>
+                {settings?.showSignSymbol !== false && (monthTotals.balance >= 0 ? '+' : '-')}{formatCurrency(Math.abs(monthTotals.balance), settings)}
+              </span>
             </div>
           </div>
-        ))}
+        )}
+      </div>
+
+        <div className="space-y-6">
+          {groupedTransactions.map((group) => {
+            const dayIncome = group.items.filter(i => i.type === 'income').reduce((s, i) => s + i.amount, 0);
+            const dayExpense = group.items.filter(i => i.type === 'expense').reduce((s, i) => s + i.amount, 0);
+            const dayBalance = dayIncome - dayExpense;
+
+            return (
+              <div key={group.date} className="space-y-2">
+              <div className="flex items-center justify-between px-1 py-1 border-b border-gray-100 pb-2">
+                <div className="flex flex-col">
+                  <h3 className="text-[13px] font-bold text-gray-800 tracking-tight">{group.date}</h3>
+                  <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider mt-0.5">{new Date(group.items[0].date).toLocaleDateString('en-US', { weekday: 'long' })}</span>
+                </div>
+                <div className={cn("flex items-center space-x-0.5 font-bold text-base tracking-tight", dayBalance < 0 ? "text-rose-500" : "text-emerald-500")}>
+                  <Sigma className="w-4 h-4" />
+                  <span>
+                    {settings?.showSignSymbol !== false && (dayBalance >= 0 ? '+' : '-')}{formatCurrency(Math.abs(dayBalance), settings)}
+                  </span>
+                </div>
+              </div>
+              <div className="space-y-3">
+                  {group.items.map((t) => {
+                    const cat = getCategory(t.categoryId);
+                    const pCat = cat?.parentId ? getCategory(cat.parentId) : undefined;
+                    return (
+                      <TransactionItem 
+                        key={t.id} 
+                        transaction={t} 
+                        category={cat}
+                        parentCategory={pCat}
+                        account={getAccount(t.accountId)}
+                        toAccount={t.toAccountId ? getAccount(t.toAccountId) : undefined}
+                        settings={settings}
+                        showDate={false}
+                      />
+                    );
+                  })}
+              </div>
+            </div>
+            );
+          })}
 
         {filteredTransactions.length === 0 && (
           <div className="text-center py-20">

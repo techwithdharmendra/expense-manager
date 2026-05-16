@@ -3,7 +3,8 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { TransactionType, Transaction } from '../types';
-import { cn, getCurrencySymbol } from '../lib/utils';
+import { cn, getCurrencySymbol, formatNumberOnly } from '../lib/utils';
+import { saveFile, getFileUri, getRawFileUri, deleteFile } from '../lib/fileStorage';
 import { 
   ArrowLeft, 
   Check, 
@@ -12,12 +13,16 @@ import {
   FileText, 
   Wallet as WalletIcon, 
   Camera,
-  X
+  X,
+  FileIcon,
+  Eye
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { getIconByName } from '../lib/icons';
 import { format, parseISO } from 'date-fns';
 
+import { Capacitor } from '@capacitor/core';
+import { Share } from '@capacitor/share';
 import { toast } from 'sonner';
 
 export default function AddTransaction() {
@@ -51,6 +56,8 @@ export default function AddTransaction() {
   });
   const [note, setNote] = useState('');
   const [attachment, setAttachment] = useState<string | undefined>();
+  const [attachmentUri, setAttachmentUri] = useState<string | undefined>();
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [showNotes, setShowNotes] = useState(false);
 
   // Helper to handle category selection and title pre-fill
@@ -113,7 +120,7 @@ export default function AddTransaction() {
 
   useEffect(() => {
     if (id) {
-      db.transactions.get(Number(id)).then(t => {
+      db.transactions.get(Number(id)).then(async t => {
         if (t) {
           setType(t.type);
           setAmount(t.amount.toString());
@@ -124,6 +131,19 @@ export default function AddTransaction() {
           setDate(new Date(t.date).toISOString().split('T')[0]);
           setNote(t.note || '');
           setAttachment(t.attachment);
+          if (t.attachment) {
+            // Check if it's a legacy base64 or a filename
+            if (t.attachment.startsWith('data:')) {
+              setAttachmentUri(t.attachment);
+            } else {
+              try {
+                const uri = await getFileUri(t.attachment);
+                setAttachmentUri(uri);
+              } catch (e) {
+                console.error('Failed to get attachment URI', e);
+              }
+            }
+          }
           if (t.note || t.attachment) {
             setShowNotes(true);
           }
@@ -143,16 +163,68 @@ export default function AddTransaction() {
     }
   }, [accounts]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setAttachment(reader.result as string);
-        toast.success('Image attached');
-      };
-      reader.readAsDataURL(file);
+      // Validate file size (e.g., 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('File too large (max 5MB)');
+        return;
+      }
+      
+      setAttachmentFile(file);
+      
+      // Create a temporary object URL for previewing/viewing before save
+      const tempUri = URL.createObjectURL(file);
+      setAttachmentUri(tempUri);
+      
+      setAttachment(file.name); // Temporary name display
+      toast.success('File attached');
     }
+  };
+
+  const handleViewFile = async () => {
+    if (!attachmentUri) {
+      toast.error('No file URI available');
+      return;
+    }
+
+    if (Capacitor.isNativePlatform() && attachment && !attachment.startsWith('data:')) {
+      try {
+        const rawUri = await getRawFileUri(attachment);
+        await Share.share({
+          title: 'View Attachment',
+          url: rawUri
+        });
+      } catch (e) {
+        window.open(attachmentUri, '_blank');
+      }
+    } else {
+      window.open(attachmentUri, '_blank');
+    }
+  };
+
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let rawValue = e.target.value;
+    const numberFormat = settings?.numberFormat || 'in';
+    
+    // Depending on the format, clean up the input into a standard float string
+    if (numberFormat === 'eu') {
+      // EU format: dot is thousand separator, comma is decimal
+      rawValue = rawValue.replace(/\./g, '').replace(/,/g, '.');
+    } else {
+      // US/IN format: comma is thousand separator, dot is decimal
+      rawValue = rawValue.replace(/,/g, '');
+    }
+
+    // Keep only numbers and at most one decimal point
+    rawValue = rawValue.replace(/[^0-9.]/g, '');
+    const parts = rawValue.split('.');
+    if (parts.length > 2) {
+      rawValue = parts[0] + '.' + parts.slice(1).join('');
+    }
+    
+    setAmount(rawValue);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -166,6 +238,16 @@ export default function AddTransaction() {
       return;
     }
 
+    let finalAttachment = attachment;
+    if (attachmentFile) {
+      try {
+        finalAttachment = await saveFile(attachmentFile);
+      } catch (err) {
+        toast.error('Failed to save attachment');
+        return;
+      }
+    }
+
     const data: Transaction = {
       title,
       amount: parseFloat(amount),
@@ -175,7 +257,7 @@ export default function AddTransaction() {
       ...(type === 'transfer' && { toAccountId: Number(toAccountId) }),
       date: new Date(date),
       note,
-      attachment
+      attachment: finalAttachment
     };
 
     try {
@@ -255,17 +337,16 @@ export default function AddTransaction() {
                 "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-colors",
                 type === 'expense' ? "bg-rose-50 text-rose-600" : type === 'income' ? "bg-emerald-50 text-emerald-600" : "bg-blue-50 text-blue-600"
               )}>
-                <span className="text-xl font-black">{getCurrencySymbol(settings?.currency)}</span>
+                <span className="text-xl font-black">{getCurrencySymbol(settings)}</span>
               </div>
               <div className="flex-1 space-y-1">
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Amount</label>
                 <input 
-                  type="number" 
-                  step="0.01"
+                  type="text" 
                   inputMode="decimal"
                   placeholder="0.00"
-                  value={amount}
-                  onChange={e => setAmount(e.target.value)}
+                  value={amount ? formatNumberOnly(amount, settings) : ''}
+                  onChange={handleAmountChange}
                   className={cn(
                     "w-full text-3xl font-black focus:outline-none placeholder:text-gray-100 bg-transparent tracking-tight transition-colors",
                     type === 'expense' ? "text-rose-500" : type === 'income' ? "text-emerald-500" : "text-blue-500"
@@ -447,15 +528,36 @@ export default function AddTransaction() {
 
               <div className="flex items-center space-x-3">
                  {attachment ? (
-                   <div className="relative w-16 h-16 rounded-2xl overflow-hidden shadow-sm ring-2 ring-indigo-100">
-                      <img src={attachment} className="w-full h-full object-cover" alt="receipt" />
-                      <button 
-                        type="button" 
-                        onClick={() => setAttachment(undefined)}
-                        className="absolute top-1 right-1 p-0.5 bg-red-500 text-white rounded-full shadow-lg"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
+                   <div className="flex items-center space-x-3 w-full">
+                     <div className="relative w-16 h-16 rounded-2xl overflow-hidden shadow-sm ring-2 ring-indigo-100 bg-gray-50 flex items-center justify-center">
+                        {attachmentUri && (attachmentUri.startsWith('data:image') || attachment.match(/\.(jpg|jpeg|png|gif|webp)$/i)) ? (
+                          <img src={attachmentUri} className="w-full h-full object-cover" alt="attachment" />
+                        ) : (
+                          <FileIcon className="w-8 h-8 text-indigo-400" />
+                        )}
+                        <button 
+                          type="button" 
+                          onClick={() => {
+                            setAttachment(undefined);
+                            setAttachmentUri(undefined);
+                            setAttachmentFile(null);
+                          }}
+                          className="absolute top-1 right-1 p-0.5 bg-red-500 text-white rounded-full shadow-lg"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                     </div>
+                     <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight truncate">{attachment}</p>
+                        <button 
+                          type="button"
+                          onClick={handleViewFile}
+                          className="mt-1 flex items-center space-x-1 px-2 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[9px] font-bold uppercase tracking-wider active:scale-95 transition-transform"
+                        >
+                          <Eye className="w-3 h-3" />
+                          <span>View File</span>
+                        </button>
+                     </div>
                    </div>
                  ) : (
                    <button 
@@ -464,7 +566,7 @@ export default function AddTransaction() {
                     className="w-16 h-16 rounded-2xl bg-gray-50 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400 hover:bg-gray-100 hover:border-indigo-200 transition-colors"
                    >
                      <Camera className="w-5 h-5 mb-1" />
-                     <span className="text-[8px] font-bold uppercase tracking-tighter">Add Photo</span>
+                     <span className="text-[8px] font-bold uppercase tracking-tighter">Add File</span>
                    </button>
                  )}
                  <input 
@@ -472,12 +574,14 @@ export default function AddTransaction() {
                   ref={fileInputRef} 
                   onChange={handleFileChange} 
                   className="hidden" 
-                  accept="image/*"
+                  accept="image/*,.pdf,.xlsx,.xls,.csv"
                  />
-                 <div className="flex-1 flex flex-col justify-center">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Attachment</p>
-                    <p className="text-[10px] text-gray-300 font-medium leading-tight">Keep a photo of your receipt for tax or returns.</p>
-                 </div>
+                 {!attachment && (
+                   <div className="flex-1 flex flex-col justify-center">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Attachment</p>
+                      <p className="text-[10px] text-gray-300 font-medium leading-tight">Attach receipt (Image, PDF, Excel).</p>
+                   </div>
+                 )}
               </div>
             </div>
           )}

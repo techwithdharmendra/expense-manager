@@ -14,8 +14,8 @@ import { cn } from '../lib/utils';
 
 export interface FilterState {
   type: 'all' | 'income' | 'expense' | 'transfer';
-  accountId: string | 'all';
-  categoryId: string | 'all';
+  accountId: string[];
+  categoryId: string[];
   dateRange: 'month' | 'week' | 'year' | 'all' | 'custom';
   startDate: string;
   endDate: string;
@@ -50,15 +50,21 @@ export default function FilterSection({
   };
 
   const filteredCategories = React.useMemo(() => {
-    if (filters.type === 'all') return categories;
-    return categories.filter(c => c.type === filters.type);
-  }, [categories, filters.type]);
+    let cats = categories;
+    if (filters.type !== 'all') {
+      cats = cats.filter(c => c.type === filters.type);
+    }
+    if (excludeTransfer) {
+      cats = cats.filter(c => c.type !== 'transfer');
+    }
+    return cats.filter(c => !c.parentId);
+  }, [categories, filters.type, excludeTransfer]);
 
   const activeFilterCount = React.useMemo(() => {
     let count = 0;
     if (filters.type !== 'all') count++;
-    if (filters.accountId !== 'all') count++;
-    if (filters.categoryId !== 'all') count++;
+    if (filters.accountId.length > 0) count += filters.accountId.length;
+    if (filters.categoryId.length > 0) count += filters.categoryId.length;
     if (filters.dateRange !== 'month') count++; // 'month' is default
     if (filters.searchTerm) count++;
     return count;
@@ -110,9 +116,27 @@ export default function FilterSection({
             <div className="bg-white p-5 border border-gray-100 space-y-5">
               <div className="flex items-center justify-between px-1">
                 <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Adjust Filters</h3>
-                <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-gray-600">
-                  <X className="w-4 h-4" />
-                </button>
+                <div className="flex items-center space-x-3">
+                  {activeFilterCount > 0 && (
+                    <button 
+                      onClick={() => onFilterChange({
+                        type: 'all',
+                        accountId: [],
+                        categoryId: [],
+                        dateRange: 'month',
+                        startDate: '',
+                        endDate: '',
+                        searchTerm: ''
+                      })}
+                      className="text-[9px] font-bold text-indigo-500 uppercase tracking-widest hover:text-indigo-600 transition-colors"
+                    >
+                      Reset
+                    </button>
+                  )}
+                  <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-gray-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               {showTypeFilter && (
@@ -135,42 +159,52 @@ export default function FilterSection({
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-5">
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold text-gray-400 uppercase ml-1">Wallet</label>
-                  <div className="relative">
-                    <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
-                    <select 
-                      value={filters.accountId}
-                      onChange={e => updateFilter({ accountId: e.target.value })}
-                      className="w-full pl-8 pr-4 py-2 bg-gray-50 rounded-xl text-[10px] font-bold text-gray-700 appearance-none focus:outline-none"
-                    >
-                      <option value="all">All Wallets</option>
-                      {accounts.map(acc => (
-                        <option key={acc.id} value={acc.id}>{acc.name}</option>
-                      ))}
-                    </select>
+                  <label className="text-[9px] font-bold text-gray-400 uppercase ml-1 flex items-center"><Wallet className="w-3 h-3 mr-1" /> Wallet</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      onClick={() => updateFilter({ accountId: [] })}
+                      className={cn("px-3 py-1.5 text-[10px] font-bold rounded-[10px] transition-all", filters.accountId.length === 0 ? "bg-indigo-500 text-white shadow-sm" : "bg-gray-50 text-gray-500 hover:bg-gray-100")}
+                    >All</button>
+                    {accounts.map(acc => (
+                      <button
+                        key={acc.id}
+                        onClick={() => {
+                           const newAccounts = filters.accountId.includes(String(acc.id)) 
+                             ? filters.accountId.filter(id => id !== String(acc.id))
+                             : [...filters.accountId, String(acc.id)];
+                           updateFilter({ accountId: newAccounts });
+                        }}
+                        className={cn("px-3 py-1.5 text-[10px] font-bold rounded-[10px] transition-all", filters.accountId.includes(String(acc.id)) ? "bg-indigo-100 text-indigo-700 shadow-sm" : "bg-gray-50 text-gray-500 hover:bg-gray-100")}
+                      >{acc.name}</button>
+                    ))}
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold text-gray-400 uppercase ml-1">Category</label>
-                  <div className="relative">
-                    <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
-                    <select 
-                      value={filters.categoryId}
-                      onChange={e => updateFilter({ categoryId: e.target.value })}
-                      className="w-full pl-8 pr-4 py-2 bg-gray-50 rounded-xl text-[10px] font-bold text-gray-700 appearance-none focus:outline-none"
-                    >
-                      <option value="all">All Categories</option>
-                      {filteredCategories.map(cat => (
-                        <option key={cat.id} value={cat.id}>{cat.name}</option>
-                      ))}
-                    </select>
+                  <label className="text-[9px] font-bold text-gray-400 uppercase ml-1 flex items-center"><Tag className="w-3 h-3 mr-1" /> Category</label>
+                  <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                    <button
+                      onClick={() => updateFilter({ categoryId: [] })}
+                      className={cn("px-3 py-1.5 text-[10px] font-bold rounded-[10px] transition-all", filters.categoryId.length === 0 ? "bg-indigo-500 text-white shadow-sm" : "bg-gray-50 text-gray-500 hover:bg-gray-100")}
+                    >All</button>
+                    {filteredCategories.map(cat => (
+                      <button
+                        key={cat.id}
+                        onClick={() => {
+                           const newCats = filters.categoryId.includes(String(cat.id)) 
+                             ? filters.categoryId.filter(id => id !== String(cat.id))
+                             : [...filters.categoryId, String(cat.id)];
+                           updateFilter({ categoryId: newCats });
+                        }}
+                        className={cn("px-3 py-1.5 text-[10px] font-bold rounded-[10px] transition-all", filters.categoryId.includes(String(cat.id)) ? "bg-indigo-100 text-indigo-700 shadow-sm" : "bg-gray-50 text-gray-500 hover:bg-gray-100")}
+                      >{cat.name}</button>
+                    ))}
                   </div>
                 </div>
 
-                <div className="space-y-1.5 col-span-2">
+                <div className="space-y-1.5">
                   <label className="text-[9px] font-bold text-gray-400 uppercase ml-1">Date Period</label>
                   <div className="relative">
                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
@@ -196,21 +230,35 @@ export default function FilterSection({
                   >
                     <div className="space-y-1">
                       <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">Start</label>
-                      <input 
-                        type="date"
-                        value={filters.startDate}
-                        onChange={(e) => updateFilter({ startDate: e.target.value })}
-                        className="w-full px-3 py-2 bg-gray-50 rounded-xl text-[10px] font-bold text-gray-700 focus:outline-none"
-                      />
+                      <div className="relative">
+                        <input 
+                          type="date"
+                          value={filters.startDate}
+                          onChange={(e) => updateFilter({ startDate: e.target.value })}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        />
+                        <div className="w-full px-3 py-2 bg-gray-50 rounded-xl text-[10px] font-bold text-gray-700">
+                          {filters.startDate 
+                            ? new Date(filters.startDate + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                            : 'Select date'}
+                        </div>
+                      </div>
                     </div>
                     <div className="space-y-1">
                       <label className="text-[8px] font-bold text-gray-400 uppercase ml-1">End</label>
-                      <input 
-                        type="date"
-                        value={filters.endDate}
-                        onChange={(e) => updateFilter({ endDate: e.target.value })}
-                        className="w-full px-3 py-2 bg-gray-50 rounded-xl text-[10px] font-bold text-gray-700 focus:outline-none"
-                      />
+                      <div className="relative">
+                        <input 
+                          type="date"
+                          value={filters.endDate}
+                          onChange={(e) => updateFilter({ endDate: e.target.value })}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        />
+                        <div className="w-full px-3 py-2 bg-gray-50 rounded-xl text-[10px] font-bold text-gray-700">
+                          {filters.endDate 
+                            ? new Date(filters.endDate + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                            : 'Select date'}
+                        </div>
+                      </div>
                     </div>
                   </motion.div>
                 )}

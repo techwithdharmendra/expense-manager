@@ -53,4 +53,8 @@ export interface AppSettings {
   pinLock?: string;
   useFingerprint: boolean;
   lastProcessedRecurring?: Date; 
+  numberFormat?: 'us' | 'in' | 'eu';
+  showDecimals?: boolean;
+  showSignSymbol?: boolean;
+  monthStartDate?: number;
 }

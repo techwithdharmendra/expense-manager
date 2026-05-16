@@ -39,7 +39,7 @@ function BottomNav() {
       </NavLink>
       <NavLink to="/analytics" className={({ isActive }) => cn("flex flex-col items-center justify-center space-y-0.5 flex-1 h-full text-[10px] uppercase font-bold transition-all duration-300", isActive ? "text-indigo-600 scale-105" : "text-gray-400 hover:text-gray-600")}>
         <PieChartIcon className="w-5 h-5" />
-        <span>Stats</span>
+        <span>Analytics</span>
       </NavLink>
       <div className="relative -top-4 flex-shrink-0 px-2">
         <NavLink to="/add" className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-indigo-200 active:scale-90 hover:scale-105 transition-all ring-4 ring-white">
