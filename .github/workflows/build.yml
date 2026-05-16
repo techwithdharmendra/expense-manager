@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch: # Allows manual triggering from the Actions tab
 
 jobs:
@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -19,15 +19,15 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'npm'
+          node-version: "22"
+          cache: "npm"
 
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
-          distribution: 'temurin'
-          
+          java-version: "21"
+          distribution: "temurin"
+
       - name: Install dependencies
         run: npm install
 
@@ -36,20 +36,38 @@ jobs:
 
       - name: Setup Android Project via Capacitor
         run: |
-          npx cap add android
-          npx cap copy android
+          if [ ! -d "android" ]; then npx cap add android; fi
           npx cap sync android
 
       - name: Make Gradle executable
         run: chmod +x android/gradlew
 
-      - name: Build Debug APK
+      - name: Build Release APK
         working-directory: ./android
-        run: ./gradlew assembleDebug --stacktrace
+        run: ./gradlew assembleRelease --stacktrace
+
+      - name: Sign Release APK
+        run: |
+          # Generate a random keystore on the fly for the release
+          keytool -genkey -v -keystore release.keystore -alias releasealias -keyalg RSA -keysize 2048 -validity 10000 -storepass "password123" -keypass "password123" -dname "CN=WalletTracker, OU=App, O=WalletTracker, L=City, ST=State, C=US"
+
+          # Find the built release APK (unsigned)
+          APK_PATH=$(find android/app/build/outputs/apk/release -name "*-unsigned.apk" | head -n 1)
+
+          # Get the absolute path to apksigner and zipalign
+          BUILD_TOOLS_DIR=$(ls -d $ANDROID_HOME/build-tools/* | tail -1)
+          ZIPALIGN_PATH="$BUILD_TOOLS_DIR/zipalign"
+          APKSIGNER_PATH="$BUILD_TOOLS_DIR/apksigner"
+
+          # Zipalign the APK
+          $ZIPALIGN_PATH -v -p 4 $APK_PATH app-release-unsigned-aligned.apk
+
+          # Sign the aligned APK
+          $APKSIGNER_PATH sign --ks release.keystore --ks-pass pass:password123 --key-pass pass:password123 --in app-release-unsigned-aligned.apk --out Wallet-Tracker-Release-Signed.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Wallet-Tracker.apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: Wallet-Tracker-Release
+          path: Wallet-Tracker-Release-Signed.apk
           retention-days: 7
