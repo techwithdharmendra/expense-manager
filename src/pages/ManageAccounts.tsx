@@ -1,21 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { Account } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
-import { ArrowLeft, Plus, Wallet, Trash2, Edit2, Check, X, Palette, Type, Search } from 'lucide-react';
+import { ArrowLeft, Plus, Wallet, Trash2, Edit2, Check, X, Palette, Type, Search, GripVertical } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CATEGORY_ICONS, getIconByName } from '../lib/icons';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 import { toast } from 'sonner';
 import ConfirmDialog from '../components/ConfirmDialog';
 
 export default function ManageAccounts() {
   const navigate = useNavigate();
-  const accounts = useLiveQuery(() => db.accounts.toArray());
+  const accountsLive = useLiveQuery(() => db.accounts.toArray());
   const settings = useLiveQuery(() => db.settings.get(1));
   const transactions = useLiveQuery(() => db.transactions.toArray());
+
+  const [accounts, setAccounts] = useState<Account[]>([]);
+
+  useEffect(() => {
+    if (accountsLive) {
+      setAccounts([...accountsLive].sort((a,b) => (a.order || 0) - (b.order || 0)));
+    }
+  }, [accountsLive]);
 
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | number | null>(null);
@@ -54,11 +63,14 @@ export default function ManageAccounts() {
       name,
       balance: parseFloat(balance) || 0,
       color,
-      icon
+      icon,
+      order: accounts.length
     };
 
     try {
       if (editingId) {
+        const existing = accounts.find(a => a.id === editingId);
+        if (existing && existing.order !== undefined) data.order = existing.order;
         await db.accounts.update(editingId, data);
         toast.success('Wallet updated successfully');
       } else {
@@ -93,6 +105,29 @@ export default function ManageAccounts() {
     setIcon(acc.icon || 'Wallet');
     setEditingId(acc.id!);
     setIsAdding(true);
+  };
+
+  const handleDragEnd = async (result: DropResult) => {
+    if (!result.destination) return;
+    
+    const items = Array.from(accounts);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    
+    setAccounts(items);
+    
+    try {
+      const updates = items.map((item, index) => ({
+         ...item,
+         order: index
+      }));
+      await db.accounts.bulkPut(updates);
+    } catch (err) {
+       toast.error('Failed to reorder wallets');
+       if (accountsLive) {
+         setAccounts([...accountsLive].sort((a,b) => (a.order || 0) - (b.order || 0)));
+       }
+    }
   };
 
   const getAccountBalance = (acc: Account) => {
@@ -226,42 +261,66 @@ export default function ManageAccounts() {
         )}
       </AnimatePresence>
 
-      <div className="space-y-3 px-1">
-        {accounts?.map(acc => {
-          const IconComponent = getIconByName(acc.icon || 'Wallet');
-          return (
-            <div key={acc.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-50 flex items-center justify-between group hover:border-indigo-100 transition-all">
-              <div className="flex items-center space-x-4">
-                <div 
-                  className="w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-sm"
-                  style={{ backgroundColor: acc.color }}
-                >
-                  <IconComponent className="w-6 h-6" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-sm text-gray-900">{acc.name}</h4>
-                  <p className="text-[10px] text-gray-400 font-medium">Balance: <span className={cn(getAccountBalance(acc) >= 0 ? "text-emerald-500" : "text-rose-500")}>{formatCurrency(getAccountBalance(acc), settings?.currency)}</span></p>
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-1">
-                 <button onClick={() => startEdit(acc)} className="p-2.5 bg-gray-50 text-gray-400 hover:text-indigo-600 rounded-xl transition-colors">
-                    <Edit2 className="w-4 h-4" />
-                 </button>
-                 <button onClick={() => setConfirmDelete(acc.id!)} className="p-2.5 bg-gray-50 text-gray-400 hover:text-rose-600 rounded-xl transition-colors">
-                    <Trash2 className="w-4 h-4" />
-                 </button>
-              </div>
-            </div>
-          );
-        })}
-        
-        {accounts?.length === 0 && (
-          <div className="text-center py-20 bg-white rounded-2xl border-2 border-dashed border-gray-100">
-             <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">No wallets found</p>
-          </div>
-        )}
-      </div>
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <Droppable droppableId="accounts">
+          {(provided) => (
+             <div className="space-y-3 px-1" {...provided.droppableProps} ref={provided.innerRef}>
+               {accounts?.map((acc, index) => {
+                 const IconComponent = getIconByName(acc.icon || 'Wallet');
+                 return (
+                   <Draggable key={String(acc.id)} draggableId={String(acc.id)} index={index}>
+                     {(provided, snapshot) => (
+                       <div 
+                         ref={provided.innerRef}
+                         {...provided.draggableProps}
+                         className={cn(
+                           "bg-white rounded-xl p-4 shadow-sm border border-gray-50 flex items-center justify-between relative",
+                           snapshot.isDragging && "shadow-xl ring-2 ring-indigo-500 z-50 opacity-90"
+                         )}
+                       >
+                         <div className="flex items-center space-x-3 sm:space-x-4">
+                           <div 
+                             {...provided.dragHandleProps}
+                             className="p-1 -ml-2 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing"
+                           >
+                             <GripVertical className="w-5 h-5" />
+                           </div>
+                           <div 
+                             className="w-12 h-12 flex-shrink-0 rounded-xl flex items-center justify-center text-white shadow-sm"
+                             style={{ backgroundColor: acc.color }}
+                           >
+                             <IconComponent className="w-6 h-6" />
+                           </div>
+                           <div>
+                             <h4 className="font-bold text-sm text-gray-900 truncate max-w-[120px] sm:max-w-full">{acc.name}</h4>
+                             <p className="text-[10px] text-gray-400 font-medium">Balance: <span className={cn(getAccountBalance(acc) >= 0 ? "text-emerald-500" : "text-rose-500")}>{formatCurrency(getAccountBalance(acc), settings?.currency)}</span></p>
+                           </div>
+                         </div>
+                         
+                         <div className="flex items-center space-x-1.5 flex-shrink-0">
+                            <button onClick={() => startEdit(acc)} className="p-2.5 bg-gray-50 text-gray-500 hover:text-indigo-600 rounded-xl transition-colors">
+                               <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => setConfirmDelete(acc.id!)} className="p-2.5 bg-gray-50 text-gray-500 hover:text-rose-600 rounded-xl transition-colors">
+                               <Trash2 className="w-4 h-4" />
+                            </button>
+                         </div>
+                       </div>
+                     )}
+                   </Draggable>
+                 );
+               })}
+               {provided.placeholder}
+               
+               {accounts?.length === 0 && (
+                 <div className="text-center py-20 bg-white rounded-2xl border-2 border-dashed border-gray-100">
+                    <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">No wallets found</p>
+                 </div>
+               )}
+             </div>
+          )}
+        </Droppable>
+      </DragDropContext>
     </div>
   );
 }

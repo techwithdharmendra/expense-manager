@@ -41,9 +41,17 @@ export default function Dashboard() {
     db.transactions.orderBy('date').reverse().limit(10).toArray()
   );
   
-  const categories = useLiveQuery(() => db.categories.toArray());
-  const accounts = useLiveQuery(() => db.accounts.toArray());
+  const categoriesLive = useLiveQuery(() => db.categories.toArray());
+  const accountsLive = useLiveQuery(() => db.accounts.toArray());
   const settings = useLiveQuery(() => db.settings.get(1));
+
+  const categories = useMemo(() => {
+    return categoriesLive ? [...categoriesLive].sort((a,b) => (a.order || 0) - (b.order || 0)) : undefined;
+  }, [categoriesLive]);
+
+  const accounts = useMemo(() => {
+    return accountsLive ? [...accountsLive].sort((a,b) => (a.order || 0) - (b.order || 0)) : undefined;
+  }, [accountsLive]);
 
   const stats = useLiveQuery(async () => {
     let income = 0;
@@ -72,7 +80,7 @@ export default function Dashboard() {
       }
     });
     
-    return accs.map(a => ({ ...a, currentBalance: balances[Number(a.id)] }));
+    return accs.map(a => ({ ...a, currentBalance: balances[Number(a.id)] })).sort((a,b) => (a.order || 0) - (b.order || 0));
   }, [], []);
 
   const chartData = useLiveQuery(async () => {

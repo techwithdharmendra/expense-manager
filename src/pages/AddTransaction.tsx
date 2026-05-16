@@ -25,9 +25,17 @@ export default function AddTransaction() {
   const { id } = useParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const categories = useLiveQuery(() => db.categories.toArray());
-  const accounts = useLiveQuery(() => db.accounts.toArray());
+  const categoriesLive = useLiveQuery(() => db.categories.toArray());
+  const accountsLive = useLiveQuery(() => db.accounts.toArray());
   const settings = useLiveQuery(() => db.settings.get(1));
+
+  const categories = React.useMemo(() => {
+    return categoriesLive ? [...categoriesLive].sort((a,b) => (a.order || 0) - (b.order || 0)) : undefined;
+  }, [categoriesLive]);
+
+  const accounts = React.useMemo(() => {
+    return accountsLive ? [...accountsLive].sort((a,b) => (a.order || 0) - (b.order || 0)) : undefined;
+  }, [accountsLive]);
 
   const [type, setType] = useState<TransactionType>('expense');
   const [amount, setAmount] = useState('');
@@ -319,20 +327,33 @@ export default function AddTransaction() {
           {categories?.some(c => c.parentId === categoryId || c.parentId === categories.find(cat => cat.id === categoryId)?.parentId) && (
             <div className="space-y-2 px-1">
                <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Sub-category</p>
-               <div className="flex overflow-x-auto pb-2 gap-2 no-scrollbar">
-                  {categories.filter(c => c.parentId === categoryId || (c.parentId && c.parentId === categories.find(cat => cat.id === categoryId)?.parentId)).map(c => (
-                    <button 
-                      key={c.id} 
-                      type="button"
-                      onClick={() => handleCategorySelect(c.id!)}
-                      className={cn(
-                        "px-4 py-2 rounded-full border text-xs font-bold transition-all shadow-sm shrink-0 whitespace-nowrap",
-                        categoryId === c.id ? "border-indigo-600 bg-white text-indigo-600" : "border-gray-50 bg-white text-gray-500"
-                      )}
-                    >
-                      {c.name}
-                    </button>
-                  ))}
+               <div className="flex overflow-x-auto pb-3 gap-2.5 no-scrollbar">
+                  {categories.filter(c => c.parentId === categoryId || (c.parentId && c.parentId === categories.find(cat => cat.id === categoryId)?.parentId)).map(c => {
+                    const IconComp = getIconByName(c.icon || 'Tag');
+                    const isSelected = categoryId === c.id;
+                    return (
+                      <button 
+                        key={c.id} 
+                        type="button"
+                        onClick={() => handleCategorySelect(c.id!)}
+                        className={cn(
+                          "flex items-center space-x-2 px-3 py-2 rounded-xl border-2 transition-all shrink-0 w-auto",
+                          isSelected ? "border-indigo-600 bg-white shadow-sm" : "border-transparent bg-white shadow-sm hover:border-gray-100"
+                        )}
+                      >
+                       <div 
+                          className="w-7 h-7 rounded-lg flex items-center justify-center text-white shadow-sm flex-shrink-0"
+                          style={{ backgroundColor: c.color }}
+                        >
+                          <IconComp className="w-3.5 h-3.5" />
+                        </div>
+                        <span className={cn(
+                          "text-[11px] font-bold whitespace-nowrap",
+                          isSelected ? "text-indigo-900" : "text-gray-600"
+                        )}>{c.name}</span>
+                      </button>
+                    );
+                  })}
                </div>
             </div>
           )}

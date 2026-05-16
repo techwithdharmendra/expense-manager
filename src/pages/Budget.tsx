@@ -18,10 +18,14 @@ import { toast } from 'sonner';
 import ConfirmDialog from '../components/ConfirmDialog';
 
 export default function Budget() {
-  const categories = useLiveQuery(() => db.categories.toArray());
+  const categoriesLive = useLiveQuery(() => db.categories.toArray());
   const transactions = useLiveQuery(() => db.transactions.toArray());
   const budgets = useLiveQuery(() => db.budgets.toArray());
   const settings = useLiveQuery(() => db.settings.get(1));
+
+  const categories = React.useMemo(() => {
+    return categoriesLive ? [...categoriesLive].sort((a,b) => (a.order || 0) - (b.order || 0)) : undefined;
+  }, [categoriesLive]);
 
   const [isAdding, setIsAdding] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('total');

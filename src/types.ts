@@ -7,6 +7,7 @@ export interface Account {
   balance: number; // Initial balance or current? We'll calculate current in UI, this is starting balance.
   icon: string;
   color: string;
+  order?: number;
 }
 
 export interface Category {
@@ -16,6 +17,7 @@ export interface Category {
   color: string;
   type: TransactionType;
   parentId?: number | string;
+  order?: number;
 }
 
 export interface Transaction {

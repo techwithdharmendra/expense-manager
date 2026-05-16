@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { Category, TransactionType } from '../types';
 import { cn } from '../lib/utils';
-import { ArrowLeft, Plus, Tag, Trash2, Edit2, X, ChevronRight, GripVertical, FolderTree } from 'lucide-react';
+import { ArrowLeft, Plus, Tag, Trash2, Edit2, Check, X, Palette, Type, ChevronRight, Layers, Search, GripVertical } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CATEGORY_ICONS, getIconByName } from '../lib/icons';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
@@ -12,20 +12,20 @@ import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea
 import { toast } from 'sonner';
 import ConfirmDialog from '../components/ConfirmDialog';
 
-export default function ManageCategories() {
+export default function ManageSubCategories() {
+  const { parentId } = useParams<{ parentId: string }>();
   const navigate = useNavigate();
-  const [activeType, setActiveType] = useState<TransactionType>('expense');
   
-  const categoriesLive = useLiveQuery(
-    () => db.categories.where('type').equals(activeType).filter(c => !c.parentId).toArray(),
-    [activeType]
-  );
+  const parentIdNum = Number(parentId);
   
-  const [mainCategories, setMainCategories] = useState<Category[]>([]);
+  const parentCategory = useLiveQuery(() => db.categories.get(parentIdNum), [parentIdNum]);
+  const categoriesLive = useLiveQuery(() => db.categories.where('parentId').equals(parentIdNum).toArray(), [parentIdNum]);
+  
+  const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
     if (categoriesLive) {
-      setMainCategories([...categoriesLive].sort((a,b) => (a.order || 0) - (b.order || 0)));
+      setCategories([...categoriesLive].sort((a,b) => (a.order || 0) - (b.order || 0)));
     }
   }, [categoriesLive]);
 
@@ -40,7 +40,7 @@ export default function ManageCategories() {
 
   const resetForm = () => {
     setName('');
-    setColor('#6366F1');
+    setColor(parentCategory?.color || '#6366F1');
     setIcon('Tag');
     setIsAdding(false);
     setEditingId(null);
@@ -49,41 +49,44 @@ export default function ManageCategories() {
 
   const handleSave = async () => {
     if (!name) {
-      toast.error('Category name is required');
+      toast.error('Sub-category name is required');
       return;
     }
 
-    // Unique name validation within same level and type
-    const exists = mainCategories.find(c => 
+    const type = parentCategory?.type || 'expense';
+
+    const exists = categories.find(c => 
       c.name.toLowerCase() === name.toLowerCase() && 
       c.id !== editingId
     );
     if (exists) {
-      toast.error('A category with this name already exists at this level');
+      toast.error('A sub-category with this name already exists here');
       return;
     }
 
     const data: Category = {
       name,
       color,
-      type: activeType,
+      type,
       icon,
-      order: mainCategories.length
+      parentId: parentIdNum,
+      order: categories.length
     };
 
     try {
       if (editingId) {
-        const existing = mainCategories.find(c => c.id === editingId);
-        if (existing && existing.order !== undefined) data.order = existing.order;
-        await db.categories.update(editingId, data);
-        toast.success('Category updated successfully');
+         // preserve order
+         const existing = categories.find(c => c.id === editingId);
+         if (existing && existing.order !== undefined) data.order = existing.order;
+         await db.categories.update(editingId, data);
+         toast.success('Sub-category updated successfully');
       } else {
-        await db.categories.add(data);
-        toast.success('Category created successfully');
+         await db.categories.add(data);
+         toast.success('Sub-category created successfully');
       }
       resetForm();
     } catch (error) {
-      toast.error('Failed to save category');
+      toast.error('Failed to save sub-category');
     }
   };
 
@@ -93,10 +96,10 @@ export default function ManageCategories() {
       const numId = Number(confirmDelete);
       if (!isNaN(numId)) {
         await db.categories.delete(numId);
-        toast.success('Category deleted successfully');
+        toast.success('Sub-category deleted successfully');
       }
     } catch (err) {
-      toast.error('Failed to delete category');
+      toast.error('Failed to delete sub-category');
     } finally {
       setConfirmDelete(null);
     }
@@ -106,7 +109,6 @@ export default function ManageCategories() {
     setName(cat.name);
     setColor(cat.color);
     setIcon(cat.icon || 'Tag');
-    setActiveType(cat.type);
     setEditingId(cat.id!);
     setIsAdding(true);
   };
@@ -114,12 +116,14 @@ export default function ManageCategories() {
   const handleDragEnd = async (result: DropResult) => {
     if (!result.destination) return;
     
-    const items = Array.from(mainCategories);
+    const items = Array.from(categories);
     const [reorderedItem] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reorderedItem);
     
-    setMainCategories(items);
+    // Update local state temporarily
+    setCategories(items);
     
+    // Update DB
     try {
       const updates = items.map((item, index) => ({
          ...item,
@@ -128,18 +132,21 @@ export default function ManageCategories() {
       await db.categories.bulkPut(updates);
     } catch (err) {
        toast.error('Failed to reorder categories');
+       // Revert
        if (categoriesLive) {
-         setMainCategories([...categoriesLive].sort((a,b) => (a.order || 0) - (b.order || 0)));
+         setCategories([...categoriesLive].sort((a,b) => (a.order || 0) - (b.order || 0)));
        }
     }
   };
 
+  if (!parentCategory) return null;
+
   return (
-    <div className="space-y-6 pb-6 mt-safe">
+    <div className="space-y-6 pb-6">
       <ConfirmDialog 
         isOpen={!!confirmDelete}
-        title="Delete Category?"
-        message="Sub-categories and transactions will lose their linkage to this category."
+        title="Delete Sub-category?"
+        message="Transactions will lose their linkage to this sub-category."
         confirmText="Delete"
         variant="danger"
         onConfirm={handleDelete}
@@ -148,33 +155,22 @@ export default function ManageCategories() {
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center space-x-3">
           <button onClick={() => navigate(-1)} className="p-2.5 bg-white shadow-sm border border-gray-100 rounded-2xl hover:bg-gray-50 transition-all">
-            <ArrowLeft className="w-5 h-5 text-gray-700" />
+             <ArrowLeft className="w-5 h-5 text-gray-700" />
           </button>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Categories</h1>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 tracking-tight">{parentCategory.name}</h1>
+            <p className="text-[11px] text-gray-500 font-medium">Manage Sub-categories</p>
+          </div>
         </div>
         <button 
-          onClick={() => setIsAdding(true)}
+          onClick={() => {
+            setColor(parentCategory.color);
+            setIsAdding(true);
+          }}
           className="p-3 bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 active:scale-90 transition-all"
         >
           <Plus className="w-5 h-5" />
         </button>
-      </div>
-
-      <div className="px-1">
-        <div className="flex p-1 bg-gray-100 rounded-2xl">
-          <button 
-            onClick={() => setActiveType('expense')}
-            className={cn("flex-1 py-2.5 text-sm font-bold rounded-xl transition-all", activeType === 'expense' ? "bg-white text-indigo-600 shadow-sm" : "text-gray-500")}
-          >
-            Expenses
-          </button>
-          <button 
-            onClick={() => setActiveType('income')}
-            className={cn("flex-1 py-2.5 text-sm font-bold rounded-xl transition-all", activeType === 'income' ? "bg-white text-emerald-600 shadow-sm" : "text-gray-500")}
-          >
-            Income
-          </button>
-        </div>
       </div>
 
       <AnimatePresence>
@@ -184,10 +180,10 @@ export default function ManageCategories() {
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
-              className="bg-white rounded-xl w-full max-w-md p-6 shadow-2xl space-y-4 relative"
+              className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 relative"
             >
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold text-gray-900">{editingId ? 'Edit Category' : 'New Category'}</h2>
+                <h2 className="text-lg font-bold text-gray-900">{editingId ? 'Edit Sub-category' : 'New Sub-category'}</h2>
                 <button onClick={resetForm} className="p-1.5 bg-gray-100 rounded-lg text-gray-400">
                   <X className="w-4 h-4" />
                 </button>
@@ -203,10 +199,10 @@ export default function ManageCategories() {
                     {React.createElement(getIconByName(icon), { className: "w-7 h-7" })}
                   </button>
                   <div className="flex-1 space-y-0.5">
-                    <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest ml-1">Category Name</label>
+                    <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest ml-1">Name</label>
                     <input 
                       type="text" 
-                      placeholder="e.g. Coffee" 
+                      placeholder="e.g. Uber" 
                       value={name}
                       onChange={e => setName(e.target.value)}
                       className="w-full bg-gray-50 rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-indigo-100"
@@ -236,7 +232,7 @@ export default function ManageCategories() {
                 onClick={handleSave}
                 className="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold text-sm shadow-lg shadow-indigo-100 active:scale-95 transition-transform"
               >
-                {editingId ? 'Update' : 'Create'} Category
+                {editingId ? 'Update' : 'Create'} Sub-category
               </button>
 
               {showIconPicker && (
@@ -264,23 +260,23 @@ export default function ManageCategories() {
       </AnimatePresence>
 
       <DragDropContext onDragEnd={handleDragEnd}>
-        <Droppable droppableId="maincategories">
+        <Droppable droppableId="subcategories">
           {(provided) => (
              <div className="space-y-3 px-1" {...provided.droppableProps} ref={provided.innerRef}>
-               {mainCategories.map((cat, index) => {
+               {categories.map((cat, index) => {
                  const IconComponent = getIconByName(cat.icon || 'Tag');
                  return (
                    <Draggable key={String(cat.id)} draggableId={String(cat.id)} index={index}>
                      {(provided, snapshot) => (
-                       <div 
+                         <div 
                          ref={provided.innerRef}
                          {...provided.draggableProps}
                          className={cn(
-                           "bg-white rounded-xl p-4 shadow-sm border border-gray-50 flex items-center justify-between relative",
+                           "bg-white rounded-xl p-3.5 shadow-sm border border-gray-50 flex items-center justify-between relative",
                            snapshot.isDragging && "shadow-xl ring-2 ring-indigo-500 z-50 opacity-90"
                          )}
                        >
-                         <div className="flex items-center space-x-3 sm:space-x-4">
+                         <div className="flex items-center space-x-3.5">
                            <div 
                              {...provided.dragHandleProps}
                              className="p-1 -ml-2 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing"
@@ -288,26 +284,19 @@ export default function ManageCategories() {
                              <GripVertical className="w-5 h-5" />
                            </div>
                            <div 
-                             className="w-12 h-12 rounded-xl flex items-center justify-center text-white flex-shrink-0"
+                             className="w-10 h-10 rounded-xl flex items-center justify-center text-white"
                              style={{ backgroundColor: cat.color }}
                            >
-                             <IconComponent className="w-6 h-6" />
+                             <IconComponent className="w-5 h-5" />
                            </div>
-                           <h4 className="font-bold text-sm text-gray-900 truncate max-w-[100px] sm:max-w-full">{cat.name}</h4>
+                           <h4 className="font-bold text-sm text-gray-900">{cat.name}</h4>
                          </div>
-                         <div className="flex items-center space-x-1.5 flex-shrink-0">
-                           <button 
-                             onClick={() => navigate(`/settings/categories/${cat.id}`)}
-                             className="p-2.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl transition-colors"
-                             title="Manage Sub-categories"
-                           >
-                             <FolderTree className="w-4 h-4" />
+                         <div className="flex items-center space-x-1">
+                           <button onClick={() => startEdit(cat)} className="p-2 bg-gray-50 text-gray-400 hover:text-indigo-600 rounded-lg">
+                             <Edit2 className="w-3.5 h-3.5" />
                            </button>
-                           <button onClick={() => startEdit(cat)} className="p-2.5 bg-gray-50 text-gray-500 hover:text-indigo-600 rounded-xl transition-colors">
-                             <Edit2 className="w-4 h-4" />
-                           </button>
-                           <button onClick={() => setConfirmDelete(cat.id!)} className="p-2.5 bg-gray-50 text-gray-500 hover:text-rose-600 rounded-xl transition-colors">
-                             <Trash2 className="w-4 h-4" />
+                           <button onClick={() => setConfirmDelete(cat.id!)} className="p-2 bg-gray-50 text-gray-400 hover:text-rose-600 rounded-lg">
+                             <Trash2 className="w-3.5 h-3.5" />
                            </button>
                          </div>
                        </div>
@@ -323,4 +312,3 @@ export default function ManageCategories() {
     </div>
   );
 }
-

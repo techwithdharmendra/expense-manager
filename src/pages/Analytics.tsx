@@ -57,9 +57,17 @@ export default function Analytics() {
 
   const [limit, setLimit] = useState(50); // Optional limit for list rendering, though charts require all data
 
-  const categories = useLiveQuery(() => db.categories.toArray()) || [];
-  const accounts = useLiveQuery(() => db.accounts.toArray()) || [];
+  const categoriesLive = useLiveQuery(() => db.categories.toArray()) || [];
+  const accountsLive = useLiveQuery(() => db.accounts.toArray()) || [];
   const settings = useLiveQuery(() => db.settings.get(1));
+
+  const categories = useMemo(() => {
+    return [...categoriesLive].sort((a,b) => (a.order || 0) - (b.order || 0));
+  }, [categoriesLive]);
+
+  const accounts = useMemo(() => {
+    return [...accountsLive].sort((a,b) => (a.order || 0) - (b.order || 0));
+  }, [accountsLive]);
 
   useEffect(() => {
     setFilters(prev => ({

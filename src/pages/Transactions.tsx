@@ -37,9 +37,17 @@ export default function Transactions() {
 
   const [limit, setLimit] = useState(50);
 
-  const categories = useLiveQuery(() => db.categories.toArray());
-  const accounts = useLiveQuery(() => db.accounts.toArray());
+  const categoriesLive = useLiveQuery(() => db.categories.toArray());
+  const accountsLive = useLiveQuery(() => db.accounts.toArray());
   const settings = useLiveQuery(() => db.settings.get(1));
+
+  const categories = useMemo(() => {
+    return categoriesLive ? [...categoriesLive].sort((a,b) => (a.order || 0) - (b.order || 0)) : undefined;
+  }, [categoriesLive]);
+
+  const accounts = useMemo(() => {
+    return accountsLive ? [...accountsLive].sort((a,b) => (a.order || 0) - (b.order || 0)) : undefined;
+  }, [accountsLive]);
 
   const filteredTransactions = useLiveQuery(
     async () => {

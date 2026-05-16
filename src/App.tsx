@@ -25,6 +25,7 @@ import Settings from './pages/Settings';
 import AddTransaction from './pages/AddTransaction';
 import ManageAccounts from './pages/ManageAccounts';
 import ManageCategories from './pages/ManageCategories';
+import ManageSubCategories from './pages/ManageSubCategories';
 
 import { Toaster } from 'sonner';
 
@@ -153,6 +154,7 @@ export default function App() {
                 <Route path="/settings" element={<PageWrapper><Settings /></PageWrapper>} />
                 <Route path="/settings/accounts" element={<PageWrapper><ManageAccounts /></PageWrapper>} />
                 <Route path="/settings/categories" element={<PageWrapper><ManageCategories /></PageWrapper>} />
+                <Route path="/settings/categories/:parentId" element={<PageWrapper><ManageSubCategories /></PageWrapper>} />
                 <Route path="/add" element={<PageWrapper><AddTransaction /></PageWrapper>} />
                 <Route path="/edit/:id" element={<PageWrapper><AddTransaction /></PageWrapper>} />
               </Routes>
