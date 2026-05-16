@@ -261,7 +261,7 @@ export default function Settings() {
             </button>
           </div>
 
-          <div className="flex items-center justify-between p-4 border-b border-gray-50">
+          <div className="flex items-center justify-between p-4">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center">
                 <Coins className="w-5 h-5" />
@@ -279,16 +279,6 @@ export default function Settings() {
               <option value="INR">INR (₹)</option>
               <option value="JPY">JPY (¥)</option>
             </select>
-          </div>
-
-          <div className="flex items-center justify-between p-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                 <Moon className="w-5 h-5" />
-              </div>
-              <p className="text-sm font-bold text-gray-700">Premium Dark Mode</p>
-            </div>
-            <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full uppercase tracking-tighter">Coming Soon</span>
           </div>
         </div>
       </section>
