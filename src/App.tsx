@@ -1,7 +1,8 @@
 
 import React, { useEffect, useState, Suspense, lazy } from 'react';
-import { HashRouter as Router, Routes, Route, NavLink, useLocation } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
+import { App as CapacitorApp } from '@capacitor/app';
 import { 
   LayoutDashboard, 
   History as HistoryIcon, 
@@ -82,6 +83,29 @@ function PageWrapper({ children }: { children: React.ReactNode }) {
       {children}
     </motion.div>
   );
+}
+
+function BackButtonHandler() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const handleBackButton = (ev: { canGoBack: boolean }) => {
+      if (location.pathname === '/') {
+        CapacitorApp.exitApp();
+      } else {
+        navigate(-1);
+      }
+    };
+
+    const listenerPromise = CapacitorApp.addListener('backButton', handleBackButton);
+
+    return () => {
+      listenerPromise.then(listener => listener.remove()).catch(() => {});
+    };
+  }, [navigate, location]);
+
+  return null;
 }
 
 export default function App() {
@@ -167,6 +191,7 @@ export default function App() {
 
   return (
     <Router>
+      <BackButtonHandler />
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-0 sm:p-4 font-sans selection:bg-indigo-100">
         <Toaster position="top-center" richColors theme="light" />
         <div className="w-full max-w-md bg-white h-screen h-[100dvh] sm:min-h-[850px] sm:max-h-[850px] shadow-2xl relative overflow-hidden sm:rounded-[3rem] ring-1 ring-gray-100 flex flex-col">

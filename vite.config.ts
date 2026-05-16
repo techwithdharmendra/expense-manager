@@ -21,10 +21,24 @@ export default defineConfig(({mode}) => {
         '@': path.resolve(__dirname, '.'),
       },
     },
+    esbuild: {
+      drop: mode === 'production' ? ['console', 'debugger'] : [],
+    },
     build: {
       target: 'es2020',
       sourcemap: false,
       minify: 'esbuild',
+      chunkSizeWarningLimit: 1000,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor-react': ['react', 'react-dom', 'react-router-dom', 'motion'],
+            'vendor-charts': ['recharts'],
+            'vendor-db': ['dexie', 'dexie-react-hooks'],
+            'vendor-ui': ['lucide-react', 'sonner']
+          }
+        }
+      }
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
