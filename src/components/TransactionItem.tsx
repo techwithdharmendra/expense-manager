@@ -12,6 +12,7 @@ interface TransactionItemProps {
   category?: Category;
   parentCategory?: Category;
   account?: Account;
+  toAccount?: Account;
   currency?: string;
   showDate?: boolean;
 }
@@ -21,11 +22,13 @@ export default function TransactionItem({
   category, 
   parentCategory,
   account, 
+  toAccount,
   currency,
   showDate = true
 }: TransactionItemProps) {
   const navigate = useNavigate();
   const IconComp = getIconByName(category?.icon || 'Tag');
+  const TransferIcon = getIconByName('ArrowRight');
 
   return (
     <motion.div 
@@ -35,16 +38,24 @@ export default function TransactionItem({
     >
       <div className="flex items-center space-x-3 overflow-hidden">
         <div 
-          className="w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-sm shrink-0"
-          style={{ backgroundColor: category?.color || '#CBD5E1' }}
+          className={cn("w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-sm shrink-0", 
+            transaction.type === 'transfer' ? "bg-blue-500" : ""
+          )}
+          style={{ backgroundColor: transaction.type !== 'transfer' ? (category?.color || '#CBD5E1') : undefined }}
         >
-          <IconComp className="w-5 h-5" /> 
+          {transaction.type === 'transfer' ? (
+             <TransferIcon className="w-5 h-5" />
+          ) : (
+             <IconComp className="w-5 h-5" />
+          )}
         </div>
         <div className="min-w-0">
           <h4 className="font-semibold text-sm text-gray-900 truncate">{transaction.title}</h4>
           <div className="flex flex-col space-y-0.5">
             <p className="text-[9px] text-gray-400 uppercase font-medium tracking-tight truncate">
-              {parentCategory ? `${parentCategory.name} • ${category?.name}` : category?.name}
+              {transaction.type === 'transfer' 
+                 ? `Transfer` 
+                 : (parentCategory ? `${parentCategory.name} • ${category?.name}` : category?.name)}
               {showDate && ` • ${new Date(transaction.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`}
             </p>
             {transaction.note && (
@@ -56,24 +67,40 @@ export default function TransactionItem({
         </div>
       </div>
       <div className="flex flex-col items-end shrink-0 ml-3">
-        <div className={cn("font-bold text-sm", transaction.type === 'income' ? "text-emerald-500" : "text-rose-500")}>
-          {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount, currency)}
+        <div className={cn("font-bold text-sm", 
+          transaction.type === 'income' ? "text-emerald-500" : 
+          transaction.type === 'expense' ? "text-rose-500" : "text-blue-500"
+        )}>
+          {transaction.type === 'income' ? '+' : transaction.type === 'expense' ? '-' : ''}{formatCurrency(transaction.amount, currency)}
         </div>
-        <div 
-          className="flex items-center space-x-1.5 mt-1 px-2 py-0.5 rounded-full border" 
-          style={{ 
-            borderColor: account?.color ? `${account.color}30` : '#F3F4F6', 
-            backgroundColor: account?.color ? `${account.color}10` : '#F9FAFB' 
-          }}
-        >
-          <div className="w-1 h-1 rounded-full" style={{ backgroundColor: account?.color || '#94A3B8' }} />
-          <span 
-            className="text-[8px] font-bold uppercase tracking-tight truncate max-w-[65px]"
-            style={{ color: account?.color || '#64748B' }}
+        {transaction.type === 'transfer' ? (
+          <div className="flex items-center space-x-1 mt-1 px-1.5 py-0.5 rounded-full bg-blue-50 border border-blue-100 flex-shrink-0 max-w-[140px]">
+             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: account?.color || '#3B82F6' }} />
+             <span className="text-[8px] font-bold uppercase tracking-tight text-blue-600 truncate max-w-[50px]">
+               {account?.name || 'Wallet'}
+             </span>
+             <TransferIcon className="w-2.5 h-2.5 text-blue-400 shrink-0" />
+             <span className="text-[8px] font-bold uppercase tracking-tight text-blue-600 truncate max-w-[50px]">
+               {toAccount?.name || 'Wallet'}
+             </span>
+          </div>
+        ) : (
+          <div 
+            className="flex items-center space-x-1.5 mt-1 px-2 py-0.5 rounded-full border max-w-[80px]" 
+            style={{ 
+              borderColor: account?.color ? `${account.color}30` : '#F3F4F6', 
+              backgroundColor: account?.color ? `${account.color}10` : '#F9FAFB' 
+            }}
           >
-            {account?.name || 'Wallet'}
-          </span>
-        </div>
+            <div className="w-1.5 h-1.5 shrink-0 rounded-full" style={{ backgroundColor: account?.color || '#94A3B8' }} />
+            <span 
+              className="text-[8px] font-bold uppercase tracking-tight truncate flex-1"
+              style={{ color: account?.color || '#64748B' }}
+            >
+              {account?.name || 'Wallet'}
+            </span>
+          </div>
+        )}
       </div>
     </motion.div>
   );

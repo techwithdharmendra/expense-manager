@@ -85,7 +85,9 @@ export default function Analytics() {
     // Wait, let's just do a filter function which relies on Dexie iteration
     const result = await collection.filter(t => {
       const matchType = filters.type === 'all' ? true : filters.type === t.type;
-      const matchAccount = filters.accountId === 'all' || Number(t.accountId) === Number(filters.accountId);
+      const matchAccount = filters.accountId === 'all' || 
+                           Number(t.accountId) === Number(filters.accountId) ||
+                           (t.type === 'transfer' && Number(t.toAccountId) === Number(filters.accountId));
       const matchCategory = filters.categoryId === 'all' || 
                            Number(t.categoryId) === Number(filters.categoryId) ||
                            Number(categories.find(c => Number(c.id) === Number(t.categoryId))?.parentId) === Number(filters.categoryId);
@@ -146,7 +148,7 @@ export default function Analytics() {
 
   const catStats = useMemo(() => {
     const stats: { [key: string]: { id: string, amount: number, color: string, name: string, type: string } } = {};
-    filteredTransactions.forEach(t => {
+    filteredTransactions.filter(t => t.type !== 'transfer').forEach(t => {
       const cat = categories.find(c => String(c.id) === String(t.categoryId));
       const catId = cat?.id?.toString() || 'unknown';
       if (!stats[catId]) {
@@ -165,7 +167,10 @@ export default function Analytics() {
 
   const totalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const totalExpense = filteredTransactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-  const totalAmount = filters.type === 'all' ? (totalIncome - totalExpense) : (filters.type === 'expense' ? totalExpense : totalIncome);
+  const totalTransfer = filteredTransactions.filter(t => t.type === 'transfer').reduce((s, t) => s + t.amount, 0);
+  const totalAmount = filters.type === 'all' ? (totalIncome - totalExpense) : 
+                      (filters.type === 'expense' ? totalExpense : 
+                      (filters.type === 'income' ? totalIncome : totalTransfer));
 
   const averages = useMemo(() => {
     if (!filteredTransactions || filteredTransactions.length === 0) return null;
@@ -233,11 +238,14 @@ export default function Analytics() {
             <div className="flex items-center justify-between mb-4">
                <div>
                   <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">
-                    {filters.type === 'all' ? 'Net Cashflow' : (filters.type === 'expense' ? 'Total Spending' : 'Total Earnings')}
+                    {filters.type === 'all' ? 'Net Cashflow' : 
+                     (filters.type === 'expense' ? 'Total Spending' : 
+                     (filters.type === 'income' ? 'Total Earnings' : 'Total Transfers'))}
                   </p>
                   <h2 className={cn(
                     "text-2xl font-bold tracking-tight",
-                    (filters.type === 'expense' || (filters.type === 'all' && totalAmount < 0)) ? "text-rose-500" : "text-emerald-500"
+                    (filters.type === 'expense' || (filters.type === 'all' && totalAmount < 0)) ? "text-rose-500" : 
+                    (filters.type === 'transfer' ? "text-blue-500" : "text-emerald-500")
                   )}>
                     {formatCurrency(totalAmount, settings?.currency)}
                   </h2>
@@ -246,6 +254,7 @@ export default function Analytics() {
                  "w-9 h-9 rounded-2xl flex items-center justify-center border",
                  filters.type === 'expense' ? "bg-indigo-50 border-indigo-100/50 text-indigo-600" : 
                  filters.type === 'income' ? "bg-emerald-50 border-emerald-100/50 text-emerald-600" :
+                 filters.type === 'transfer' ? "bg-blue-50 border-blue-100/50 text-blue-600" :
                  "bg-gray-50 border-gray-100 text-gray-600"
                )}>
                   <Wallet className="w-4 h-4" />
@@ -529,6 +538,7 @@ export default function Analytics() {
                   category={cat}
                   parentCategory={pCat}
                   account={getAccount(t.accountId)}
+                  toAccount={t.toAccountId ? getAccount(t.toAccountId) : undefined}
                   currency={settings?.currency}
                 />
               );

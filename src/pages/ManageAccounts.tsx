@@ -131,8 +131,18 @@ export default function ManageAccounts() {
   };
 
   const getAccountBalance = (acc: Account) => {
-    const accTransactions = transactions?.filter(t => Number(t.accountId) === Number(acc.id)) || [];
+    const accTransactions = transactions?.filter(t => 
+      Number(t.accountId) === Number(acc.id) || 
+      (t.type === 'transfer' && Number(t.toAccountId) === Number(acc.id))
+    ) || [];
     const total = accTransactions.reduce((sum, t) => {
+      if (t.type === 'transfer') {
+        if (Number(t.accountId) === Number(acc.id)) {
+          return sum - t.amount;
+        } else if (Number(t.toAccountId) === Number(acc.id)) {
+          return sum + t.amount;
+        }
+      }
       return sum + (t.type === 'income' ? t.amount : -t.amount);
     }, acc.balance);
     return total;
@@ -205,6 +215,7 @@ export default function ManageAccounts() {
                    <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest ml-1">Initial Balance</label>
                    <input 
                       type="number" 
+                      step="0.01"
                       placeholder="0.00" 
                       value={balance}
                       onChange={e => setBalance(e.target.value)}

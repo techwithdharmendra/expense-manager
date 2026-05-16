@@ -1,5 +1,5 @@
 
-export type TransactionType = 'income' | 'expense';
+export type TransactionType = 'income' | 'expense' | 'transfer';
 
 export interface Account {
   id?: number | string;
@@ -27,6 +27,7 @@ export interface Transaction {
   type: TransactionType;
   categoryId: number | string;
   accountId: number | string;
+  toAccountId?: number | string; // For transfers
   date: Date;
   note?: string;
   tags?: string[];

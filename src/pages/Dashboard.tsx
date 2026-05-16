@@ -56,6 +56,11 @@ export default function Dashboard() {
   const stats = useLiveQuery(async () => {
     let income = 0;
     let expense = 0;
+    let initialBalance = 0;
+    
+    const accs = await db.accounts.toArray();
+    accs.forEach(a => initialBalance += a.balance);
+
     await db.transactions.each(t => {
       if (t.type === 'income') income += t.amount;
       else if (t.type === 'expense') expense += t.amount;
@@ -63,7 +68,7 @@ export default function Dashboard() {
     return {
       income,
       expense,
-      balance: income - expense,
+      balance: initialBalance + income - expense,
       savings: income > 0 ? ((income - expense) / income) * 100 : 0
     };
   }, [], { balance: 0, income: 0, expense: 0, savings: 0 });
@@ -75,8 +80,16 @@ export default function Dashboard() {
     
     await db.transactions.each(t => {
       const accId = Number(t.accountId);
+      const toAccId = Number(t.toAccountId);
       if (balances[accId] !== undefined) {
-        balances[accId] += t.type === 'income' ? t.amount : -t.amount;
+        if (t.type === 'transfer') {
+          balances[accId] -= t.amount;
+        } else {
+          balances[accId] += t.type === 'income' ? t.amount : -t.amount;
+        }
+      }
+      if (t.type === 'transfer' && toAccId && balances[toAccId] !== undefined) {
+        balances[toAccId] += t.amount;
       }
     });
     
@@ -374,6 +387,7 @@ export default function Dashboard() {
                   category={cat}
                   parentCategory={pCat}
                   account={getAccount(t.accountId)}
+                  toAccount={t.toAccountId ? getAccount(t.toAccountId) : undefined}
                   currency={settings?.currency}
                 />
               );

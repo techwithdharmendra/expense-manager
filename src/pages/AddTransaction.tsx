@@ -42,6 +42,7 @@ export default function AddTransaction() {
   const [title, setTitle] = useState('');
   const [categoryId, setCategoryId] = useState<string | number>('');
   const [accountId, setAccountId] = useState<string | number>('');
+  const [toAccountId, setToAccountId] = useState<string | number>('');
   const [date, setDate] = useState(() => {
     const d = new Date();
     const offset = d.getTimezoneOffset();
@@ -93,7 +94,7 @@ export default function AddTransaction() {
 
   // Reset category when type changes or on initial load
   useEffect(() => {
-    if (categories && !id) {
+    if (categories && !id && type !== 'transfer') {
       const currentCat = categoryId ? categories.find(c => c.id === categoryId) : null;
       if (!currentCat || currentCat.type !== type) {
         const firstValidParent = categories.find(c => c.type === type && !c.parentId);
@@ -101,6 +102,8 @@ export default function AddTransaction() {
           handleCategorySelect(firstValidParent.id!);
         }
       }
+    } else if (type === 'transfer' && !title) {
+       setTitle('Transfer');
     }
   }, [type, categories, id]);
 
@@ -113,6 +116,7 @@ export default function AddTransaction() {
           setTitle(t.title);
           setCategoryId(t.categoryId);
           setAccountId(t.accountId);
+          setToAccountId(t.toAccountId || '');
           setDate(new Date(t.date).toISOString().split('T')[0]);
           setNote(t.note || '');
           setAttachment(t.attachment);
@@ -127,6 +131,11 @@ export default function AddTransaction() {
   useEffect(() => {
     if (accounts && !accountId && accounts.length > 0) {
       setAccountId(accounts[0].id!);
+    }
+    if (accounts && !toAccountId && accounts.length > 1) {
+      setToAccountId(accounts[1].id!);
+    } else if (accounts && !toAccountId && accounts.length > 0) {
+      setToAccountId(accounts[0].id!);
     }
   }, [accounts]);
 
@@ -144,8 +153,12 @@ export default function AddTransaction() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || !title || !categoryId || !accountId) {
+    if (!amount || !title || !accountId || (type !== 'transfer' && !categoryId)) {
       toast.error('Please fill all required fields');
+      return;
+    }
+    if (type === 'transfer' && (!toAccountId || String(accountId) === String(toAccountId))) {
+      toast.error('Please select different accounts for transfer');
       return;
     }
 
@@ -153,8 +166,9 @@ export default function AddTransaction() {
       title,
       amount: parseFloat(amount),
       type,
-      categoryId: Number(categoryId),
+      categoryId: type === 'transfer' ? 0 : Number(categoryId),
       accountId: Number(accountId),
+      ...(type === 'transfer' && { toAccountId: Number(toAccountId) }),
       date: new Date(date),
       note,
       attachment
@@ -184,20 +198,27 @@ export default function AddTransaction() {
         <div className="w-10"></div>
       </div>
 
-      <div className="flex p-1 bg-gray-100 rounded-2xl">
+      <div className="flex p-1 bg-gray-100 rounded-2xl overflow-x-auto no-scrollbar">
         <button 
           type="button"
           onClick={() => setType('expense')}
-          className={cn("flex-1 py-2 text-sm font-bold rounded-xl transition-all", type === 'expense' ? "bg-white text-indigo-600 shadow-sm" : "text-gray-500")}
+          className={cn("flex-1 px-4 py-2 text-sm font-bold rounded-xl transition-all whitespace-nowrap", type === 'expense' ? "bg-white text-indigo-600 shadow-sm" : "text-gray-500")}
         >
           Expense
         </button>
         <button 
           type="button"
           onClick={() => setType('income')}
-          className={cn("flex-1 py-2 text-sm font-bold rounded-xl transition-all", type === 'income' ? "bg-white text-emerald-600 shadow-sm" : "text-gray-500")}
+          className={cn("flex-1 px-4 py-2 text-sm font-bold rounded-xl transition-all whitespace-nowrap", type === 'income' ? "bg-white text-emerald-600 shadow-sm" : "text-gray-500")}
         >
           Income
+        </button>
+        <button 
+          type="button"
+          onClick={() => setType('transfer')}
+          className={cn("flex-1 px-4 py-2 text-sm font-bold rounded-xl transition-all whitespace-nowrap", type === 'transfer' ? "bg-white text-blue-600 shadow-sm" : "text-gray-500")}
+        >
+          Transfer
         </button>
       </div>
 
@@ -228,7 +249,7 @@ export default function AddTransaction() {
             <div className="flex items-center space-x-4">
               <div className={cn(
                 "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-colors",
-                type === 'expense' ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600"
+                type === 'expense' ? "bg-rose-50 text-rose-600" : type === 'income' ? "bg-emerald-50 text-emerald-600" : "bg-blue-50 text-blue-600"
               )}>
                 <span className="text-xl font-black">{getCurrencySymbol(settings?.currency)}</span>
               </div>
@@ -236,13 +257,14 @@ export default function AddTransaction() {
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Amount</label>
                 <input 
                   type="number" 
+                  step="0.01"
                   inputMode="decimal"
                   placeholder="0.00"
                   value={amount}
                   onChange={e => setAmount(e.target.value)}
                   className={cn(
                     "w-full text-3xl font-black focus:outline-none placeholder:text-gray-100 bg-transparent tracking-tight transition-colors",
-                    type === 'expense' ? "text-rose-500" : "text-emerald-500"
+                    type === 'expense' ? "text-rose-500" : type === 'income' ? "text-emerald-500" : "text-blue-500"
                   )}
                   required
                 />
@@ -278,7 +300,7 @@ export default function AddTransaction() {
                   <WalletIcon className="w-5 h-5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block ml-0.5">Account</label>
+                  <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block ml-0.5">{type === 'transfer' ? 'From' : 'Account'}</label>
                   <select 
                     value={accountId}
                     onChange={e => setAccountId(e.target.value)}
@@ -292,9 +314,36 @@ export default function AddTransaction() {
                 </div>
                </div>
             </div>
+
+            {type === 'transfer' && (
+              <>
+                <div className="h-px bg-gray-50" />
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
+                    <WalletIcon className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block ml-0.5">To Account</label>
+                    <select 
+                      value={toAccountId}
+                      onChange={e => setToAccountId(e.target.value)}
+                      className="w-full text-xs font-bold focus:outline-none bg-transparent appearance-none truncate"
+                      required
+                    >
+                      {accounts?.map(acc => (
+                        <option key={acc.id} value={acc.id}>{acc.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
+            
           </div>
 
-          <div className="space-y-2 px-1">
+          {type !== 'transfer' && (
+            <>
+              <div className="space-y-2 px-1">
              <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Category</p>
              <div className="flex overflow-x-auto pb-3 gap-3 no-scrollbar">
                 {categories?.filter(c => c.type === type && !c.parentId).map(c => {
@@ -324,7 +373,7 @@ export default function AddTransaction() {
           </div>
 
           {/* Subcategories */}
-          {categories?.some(c => c.parentId === categoryId || c.parentId === categories.find(cat => cat.id === categoryId)?.parentId) && (
+           {categories?.some(c => c.parentId === categoryId || c.parentId === categories.find(cat => cat.id === categoryId)?.parentId) && (
             <div className="space-y-2 px-1">
                <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Sub-category</p>
                <div className="flex overflow-x-auto pb-3 gap-2.5 no-scrollbar">
@@ -356,6 +405,8 @@ export default function AddTransaction() {
                   })}
                </div>
             </div>
+          )}
+          </>
           )}
 
           {!showNotes ? (

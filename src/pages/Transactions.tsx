@@ -60,7 +60,11 @@ export default function Transactions() {
         if (filters.type !== 'all' && t.type !== filters.type) return false;
         
         // Account filter
-        if (filters.accountId !== 'all' && Number(t.accountId) !== Number(filters.accountId)) return false;
+        if (filters.accountId !== 'all') {
+          const accMatch = Number(t.accountId) === Number(filters.accountId) || 
+                          (t.type === 'transfer' && Number(t.toAccountId) === Number(filters.accountId));
+          if (!accMatch) return false;
+        }
         
         // Category filter
         if (filters.categoryId !== 'all') {
@@ -159,6 +163,7 @@ export default function Transactions() {
                       category={cat}
                       parentCategory={pCat}
                       account={getAccount(t.accountId)}
+                      toAccount={t.toAccountId ? getAccount(t.toAccountId) : undefined}
                       currency={settings?.currency}
                       showDate={false}
                     />

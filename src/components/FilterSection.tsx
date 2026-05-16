@@ -13,7 +13,7 @@ import {
 import { cn } from '../lib/utils';
 
 export interface FilterState {
-  type: 'all' | 'income' | 'expense';
+  type: 'all' | 'income' | 'expense' | 'transfer';
   accountId: string | 'all';
   categoryId: string | 'all';
   dateRange: 'month' | 'week' | 'year' | 'all' | 'custom';
@@ -117,7 +117,7 @@ export default function FilterSection({
                 <div className="space-y-2">
                   <label className="text-[9px] font-bold text-gray-400 uppercase ml-1">Transaction Type</label>
                   <div className="flex p-1 bg-gray-50 rounded-xl">
-                    {(['all', 'income', 'expense'] as const).map(f => (
+                    {(['all', 'income', 'expense', 'transfer'] as const).map(f => (
                       <button
                         key={f}
                         onClick={() => updateFilter({ type: f })}
