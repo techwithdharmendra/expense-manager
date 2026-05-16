@@ -21,7 +21,15 @@ export class ExpenseDB extends Dexie {
   }
 }
 
-export const db = new ExpenseDB();
+let dbInstance: ExpenseDB;
+try {
+  dbInstance = new ExpenseDB();
+} catch (error) {
+  console.error("Failed to initialize Dexie Database:", error);
+  // Re-throw so at least it's known, but typically it doesn't fail on new Dexie(), it fails on open().
+  dbInstance = new ExpenseDB();
+}
+export const db = dbInstance;
 
 // Initialize default categories if none exist
 export async function initDefaultCategories() {

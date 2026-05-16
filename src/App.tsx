@@ -92,10 +92,15 @@ export default function App() {
 
   useEffect(() => {
     const setup = async () => {
-      await initDefaultCategories();
-      await initDefaultAccounts();
-      await initDefaultSettings();
-      setTimeout(() => setInitialized(true), 1200);
+      try {
+        await initDefaultCategories();
+        await initDefaultAccounts();
+        await initDefaultSettings();
+      } catch (err) {
+        console.error('DB Init Error:', err);
+      } finally {
+        setTimeout(() => setInitialized(true), 500);
+      }
     };
     setup();
   }, []);
@@ -164,7 +169,7 @@ export default function App() {
     <Router>
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-0 sm:p-4 font-sans selection:bg-indigo-100">
         <Toaster position="top-center" richColors theme="light" />
-        <div className="w-full max-w-md bg-white h-[100dvh] sm:min-h-[850px] sm:max-h-[850px] shadow-2xl relative overflow-hidden sm:rounded-[3rem] ring-1 ring-gray-100 flex flex-col">
+        <div className="w-full max-w-md bg-white h-screen h-[100dvh] sm:min-h-[850px] sm:max-h-[850px] shadow-2xl relative overflow-hidden sm:rounded-[3rem] ring-1 ring-gray-100 flex flex-col">
           <div className="flex-1 overflow-y-auto no-scrollbar bg-gray-50/10">
             <AnimatePresence mode="wait">
               <Routes>
