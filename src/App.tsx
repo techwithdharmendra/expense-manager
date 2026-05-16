@@ -17,16 +17,15 @@ import { cn } from './lib/utils';
 import PinLock from './components/PinLock';
 import { useLiveQuery } from 'dexie-react-hooks';
 
-// Lazy load Pages
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const Transactions = lazy(() => import('./pages/Transactions'));
-const Analytics = lazy(() => import('./pages/Analytics'));
-const Budget = lazy(() => import('./pages/Budget'));
-const Settings = lazy(() => import('./pages/Settings'));
-const AddTransaction = lazy(() => import('./pages/AddTransaction'));
-const ManageAccounts = lazy(() => import('./pages/ManageAccounts'));
-const ManageCategories = lazy(() => import('./pages/ManageCategories'));
-const ManageSubCategories = lazy(() => import('./pages/ManageSubCategories'));
+import Dashboard from './pages/Dashboard';
+import Transactions from './pages/Transactions';
+import Analytics from './pages/Analytics';
+import Budget from './pages/Budget';
+import Settings from './pages/Settings';
+import AddTransaction from './pages/AddTransaction';
+import ManageAccounts from './pages/ManageAccounts';
+import ManageCategories from './pages/ManageCategories';
+import ManageSubCategories from './pages/ManageSubCategories';
 
 import { Toaster } from 'sonner';
 
@@ -80,9 +79,7 @@ function PageWrapper({ children }: { children: React.ReactNode }) {
       transition={{ duration: 0.3, ease: 'easeOut' }}
       className="pb-4 pt-3 px-4 md:px-6 min-h-full bg-transparent"
     >
-      <Suspense fallback={<LoadingFallback />}>
-        {children}
-      </Suspense>
+      {children}
     </motion.div>
   );
 }
