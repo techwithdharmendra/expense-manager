@@ -59,6 +59,7 @@ export default function AddTransaction() {
   const [attachmentUri, setAttachmentUri] = useState<string | undefined>();
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [showNotes, setShowNotes] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   // Helper to handle category selection and title pre-fill
   const handleCategorySelect = (catId: string | number) => {
@@ -189,12 +190,18 @@ export default function AddTransaction() {
       return;
     }
 
+    // For images, we can show internal preview
+    if (attachment?.match(/\.(jpg|jpeg|png|gif|webp)$/i) || attachmentUri.startsWith('data:image')) {
+      setShowPreview(true);
+      return;
+    }
+
     if (Capacitor.isNativePlatform() && attachment && !attachment.startsWith('data:')) {
       try {
         const rawUri = await getRawFileUri(attachment);
         await Share.share({
-          title: 'View Attachment',
-          url: rawUri
+          title: attachment,
+          files: [rawUri]
         });
       } catch (e) {
         window.open(attachmentUri, '_blank');
@@ -597,6 +604,41 @@ export default function AddTransaction() {
           </button>
         </div>
       </form>
+
+      {/* Image Preview Modal */}
+      {showPreview && (
+        <div className="fixed inset-0 z-[100] bg-black flex flex-col pt-safe animate-in fade-in duration-200">
+          <div className="flex items-center justify-between p-4 text-white">
+            <button onClick={() => setShowPreview(false)} className="p-2 -ml-2 rounded-full bg-white/10 active:bg-white/20 transition-colors">
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <span className="text-sm font-bold uppercase tracking-widest">{attachment}</span>
+            <button 
+              onClick={async () => {
+                if (Capacitor.isNativePlatform() && attachment && !attachment.startsWith('data:')) {
+                  const rawUri = await getRawFileUri(attachment);
+                  await Share.share({ title: attachment, files: [rawUri] });
+                } else if (attachmentUri) {
+                  window.open(attachmentUri, '_blank');
+                }
+              }}
+              className="p-2 rounded-full bg-white/10 active:bg-white/20 transition-colors"
+            >
+              {Capacitor.isNativePlatform() ? <Check className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </button>
+          </div>
+          <div className="flex-1 flex items-center justify-center p-4">
+            <img 
+              src={attachmentUri} 
+              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" 
+              alt="Preview" 
+            />
+          </div>
+          <div className="p-6 text-center text-white/40 text-[10px] font-medium uppercase tracking-widest">
+            Tap the top right icon to share or save
+          </div>
+        </div>
+      )}
     </div>
   );
 }

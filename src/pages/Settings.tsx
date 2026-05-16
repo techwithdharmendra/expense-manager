@@ -77,8 +77,9 @@ export default function Settings() {
         await Share.share({
           title: 'Export Backup',
           text: 'Here is your backup file',
-          url: result.uri,
+          files: [result.uri],
         });
+        toast.success(`Backup saved & shared: ${fileName}`);
       } else {
         const blob = new Blob([jsonData], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -117,7 +118,7 @@ export default function Settings() {
          await Share.share({
             title: 'Export Transactions',
             text: 'Here are your transactions',
-            url: result.uri,
+            files: [result.uri],
          });
        } else {
          const blob = new Blob([csv], { type: 'text/csv' });
