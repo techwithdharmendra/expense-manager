@@ -406,7 +406,18 @@ export default function Analytics() {
         {catStats.length > 0 && (
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-50 flex flex-col items-center">
              <div className="relative h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
+                {compositionView === 'pie' && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{filters.type === 'expense' ? 'Spent' : (filters.type === 'income' ? 'Earned' : 'Balance')}</p>
+                     <p className={cn(
+                       "text-xl font-bold leading-tight", 
+                       (filters.type === 'expense' || (filters.type === 'all' && (totalIncome - totalExpense) < 0)) ? "text-rose-500" : "text-emerald-500"
+                     )}>
+                       {(filters.type === 'expense' || filters.type === 'income') ? formatCurrency(totalAmount, settings?.currency) : formatCurrency(totalIncome - totalExpense, settings?.currency)}
+                     </p>
+                  </div>
+                )}
+                <ResponsiveContainer width="100%" height="100%" className="z-10">
                   {compositionView === 'pie' ? (
                     <PieChart>
                       <Pie
@@ -475,17 +486,6 @@ export default function Analytics() {
                     </BarChart>
                   )}
                 </ResponsiveContainer>
-                {compositionView === 'pie' && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{filters.type === 'expense' ? 'Spent' : (filters.type === 'income' ? 'Earned' : 'Balance')}</p>
-                     <p className={cn(
-                       "text-xl font-bold leading-tight", 
-                       (filters.type === 'expense' || (filters.type === 'all' && (totalIncome - totalExpense) < 0)) ? "text-rose-500" : "text-emerald-500"
-                     )}>
-                       {(filters.type === 'expense' || filters.type === 'income') ? formatCurrency(totalAmount, settings?.currency) : formatCurrency(totalIncome - totalExpense, settings?.currency)}
-                     </p>
-                  </div>
-                )}
              </div>
           </div>
         )}

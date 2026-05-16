@@ -176,7 +176,7 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between px-1">
         <div>
-          <p className="text-[9px] text-gray-400 font-bold uppercase tracking-[0.2em] mb-0.5">Morning,</p>
+          <p className="text-[9px] text-gray-400 font-bold uppercase tracking-[0.2em] mb-0.5">Dharmendra's</p>
           <h1 className="text-lg font-bold text-gray-900 tracking-tight leading-none">Wallet Tracker</h1>
         </div>
         <div className="flex items-center space-x-1.5">
@@ -306,7 +306,13 @@ export default function Dashboard() {
         </div>
 
         <div className="relative h-44 flex items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+               <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{chartType}</p>
+               <p className="text-base font-bold text-gray-900 leading-tight flex items-center space-x-1">
+                 <span>{formatCurrency(totalType, settings?.currency)}</span>
+               </p>
+            </div>
+            <ResponsiveContainer width="100%" height="100%" className="z-10">
               <PieChart>
                 <Pie
                   data={categoryChartData}
@@ -352,12 +358,6 @@ export default function Dashboard() {
                 />
               </PieChart>
             </ResponsiveContainer>
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-               <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{chartType}</p>
-               <p className="text-base font-bold text-gray-900 leading-tight">
-                 {formatCurrency(totalType, settings?.currency)}
-               </p>
-            </div>
         </div>
 
         <div className="space-y-3">
