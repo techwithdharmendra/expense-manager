@@ -55,7 +55,8 @@ export default function Analytics() {
     searchTerm: ''
   });
 
-  const transactions = useLiveQuery(() => db.transactions.toArray()) || [];
+  const [limit, setLimit] = useState(50); // Optional limit for list rendering, though charts require all data
+
   const categories = useLiveQuery(() => db.categories.toArray()) || [];
   const accounts = useLiveQuery(() => db.accounts.toArray()) || [];
   const settings = useLiveQuery(() => db.settings.get(1));
@@ -69,8 +70,12 @@ export default function Analytics() {
     }));
   }, [initialTab, initialAccountId, initialCategoryId]);
 
-  const filteredTransactions = useMemo(() => {
-    return transactions.filter(t => {
+  const filteredTransactions = useLiveQuery(async () => {
+    let collection = db.transactions.orderBy('date').reverse();
+    
+    // Attempt basic date range opt using index ranges!
+    // Wait, let's just do a filter function which relies on Dexie iteration
+    const result = await collection.filter(t => {
       const matchType = filters.type === 'all' ? true : filters.type === t.type;
       const matchAccount = filters.accountId === 'all' || Number(t.accountId) === Number(filters.accountId);
       const matchCategory = filters.categoryId === 'all' || 
@@ -79,7 +84,7 @@ export default function Analytics() {
       
       const matchSearch = !filters.searchTerm || 
                          t.title.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-                         t.note?.toLowerCase().includes(filters.searchTerm.toLowerCase());
+                         (t.note && t.note.toLowerCase().includes(filters.searchTerm.toLowerCase()));
 
       let matchDate = true;
       const now = new Date();
@@ -103,9 +108,11 @@ export default function Analytics() {
         }
       }
 
-      return matchType && matchAccount && matchCategory && matchDate && matchSearch;
-    });
-  }, [transactions, filters, categories]);
+      return matchType && matchAccount && matchCategory && matchDate && !!matchSearch;
+    }).toArray();
+    
+    return result.sort((a,b) => b.date.getTime() - a.date.getTime() || (Number(b.id) - Number(a.id)));
+  }, [filters, categories], []);
 
   const trendData = useMemo(() => {
     if (filteredTransactions.length === 0) return [];
@@ -151,6 +158,47 @@ export default function Analytics() {
   const totalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const totalExpense = filteredTransactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
   const totalAmount = filters.type === 'all' ? (totalIncome - totalExpense) : (filters.type === 'expense' ? totalExpense : totalIncome);
+
+  const averages = useMemo(() => {
+    if (!filteredTransactions || filteredTransactions.length === 0) return null;
+    
+    let minDate = filteredTransactions[0].date.getTime();
+    let maxDate = filteredTransactions[0].date.getTime();
+
+    filteredTransactions.forEach(t => {
+      const time = t.date.getTime();
+      if (time < minDate) minDate = time;
+      if (time > maxDate) maxDate = time;
+    });
+
+    const spanDays = Math.max(1, Math.ceil((maxDate - minDate) / (1000 * 60 * 60 * 24)) + 1);
+    const spanWeeks = Math.max(1, spanDays / 7.0);
+    const spanMonths = Math.max(1, spanDays / 30.436875);
+    const spanYears = Math.max(1, spanDays / 365.2425);
+
+    return {
+      daily: { income: totalIncome / spanDays, expense: totalExpense / spanDays },
+      weekly: { income: totalIncome / spanWeeks, expense: totalExpense / spanWeeks },
+      monthly: { income: totalIncome / spanMonths, expense: totalExpense / spanMonths },
+      yearly: { income: totalIncome / spanYears, expense: totalExpense / spanYears }
+    };
+  }, [filteredTransactions, totalIncome, totalExpense]);
+
+  const periodLabel = useMemo(() => {
+    if (filters.dateRange === 'month') {
+      return new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    } else if (filters.dateRange === 'week') {
+      return 'This Week';
+    } else if (filters.dateRange === 'year') {
+      return new Date().toLocaleDateString('en-US', { year: 'numeric' });
+    } else if (filters.dateRange === 'custom') {
+      if (filters.startDate && filters.endDate) {
+         return `${new Date(filters.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(filters.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+      }
+      return 'Custom Range';
+    }
+    return 'All Time';
+  }, [filters.dateRange, filters.startDate, filters.endDate]);
 
   const getCategory = (id: string | number) => categories?.find(c => String(c.id) === String(id));
   const getAccount = (id: string | number) => accounts?.find(a => String(a.id) === String(id));
@@ -432,12 +480,38 @@ export default function Analytics() {
         )}
       </div>
 
+      {/* Averages Section */}
+      {averages && (
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-50 flex flex-col space-y-4">
+          <div className="mb-1">
+             <h3 className="text-xl font-bold text-gray-900 tracking-tight">Average</h3>
+             <p className="text-sm text-gray-500 font-medium mt-0.5">{periodLabel}</p>
+          </div>
+          
+          <div className="space-y-2.5 pt-1">
+            {[
+              { label: 'Day', data: averages.daily },
+              { label: 'Week', data: averages.weekly },
+              { label: 'Month', data: averages.monthly }
+            ].map((avg, i) => (
+              <div key={i} className="flex items-center justify-between">
+                <span className="text-base text-gray-600 font-medium">{avg.label}</span>
+                <div className="flex space-x-6 text-right font-medium text-base">
+                  <span className="text-emerald-500 w-24 truncate" title={formatCurrency(avg.data.income, settings?.currency)}>{formatCurrency(avg.data.income, settings?.currency)}</span>
+                  <span className="text-rose-500 w-24 truncate" title={formatCurrency(avg.data.expense, settings?.currency)}>{formatCurrency(avg.data.expense, settings?.currency)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Filtered Transactions List */}
       <div className="space-y-4">
         <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Transactions in this period</h3>
         <div className="space-y-3">
           {filteredTransactions.length > 0 ? (
-            filteredTransactions.sort((a,b) => b.date.getTime() - a.date.getTime() || (Number(b.id) - Number(a.id))).map(t => {
+            filteredTransactions.slice(0, limit).map(t => {
               const cat = getCategory(t.categoryId);
               const pCat = cat?.parentId ? getCategory(cat.parentId) : undefined;
               return (
@@ -454,6 +528,17 @@ export default function Analytics() {
           ) : (
             <div className="p-8 text-center bg-gray-50 rounded-3xl border border-dashed border-gray-100">
                <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">No matching transactions</p>
+            </div>
+          )}
+
+          {filteredTransactions.length > limit && (
+            <div className="flex justify-center pt-4 pb-8">
+              <button
+                onClick={() => setLimit(l => l + 50)}
+                className="px-6 py-2.5 bg-white border border-gray-200 text-gray-600 font-bold text-sm tracking-tight rounded-2xl shadow-sm active:scale-95 transition-transform"
+              >
+                Load More
+              </button>
             </div>
           )}
         </div>

@@ -35,61 +35,70 @@ export default function Transactions() {
     searchTerm: ''
   });
 
-  const transactions = useLiveQuery(() => db.transactions.toArray());
+  const [limit, setLimit] = useState(50);
+
   const categories = useLiveQuery(() => db.categories.toArray());
   const accounts = useLiveQuery(() => db.accounts.toArray());
   const settings = useLiveQuery(() => db.settings.get(1));
 
-  const filteredTransactions = useMemo(() => {
-    if (!transactions) return [];
-    let result = transactions.filter(t => {
-      // Type filter
-      if (filters.type !== 'all' && t.type !== filters.type) return false;
-      
-      // Account filter
-      if (filters.accountId !== 'all' && Number(t.accountId) !== Number(filters.accountId)) return false;
-      
-      // Category filter
-      if (filters.categoryId !== 'all') {
-        const catId = Number(t.categoryId);
-        const selectedId = Number(filters.categoryId);
-        const category = categories?.find(c => Number(c.id) === catId);
-        const isMatch = catId === selectedId || Number(category?.parentId) === selectedId;
-        if (!isMatch) return false;
-      }
-      
-      // Date filter
-      const tDate = new Date(t.date);
-      const now = new Date();
-      if (filters.dateRange === 'month') {
-        if (tDate.getMonth() !== now.getMonth() || tDate.getFullYear() !== now.getFullYear()) return false;
-      } else if (filters.dateRange === 'week') {
-        const weekAgo = new Date();
-        weekAgo.setDate(now.getDate() - 7);
-        if (tDate < weekAgo) return false;
-      } else if (filters.dateRange === 'year') {
-        if (tDate.getFullYear() !== now.getFullYear()) return false;
-      } else if (filters.dateRange === 'custom' && filters.startDate && filters.endDate) {
-        const start = new Date(filters.startDate);
-        start.setHours(0, 0, 0, 0);
-        const end = new Date(filters.endDate);
-        end.setHours(23, 59, 59, 999);
-        if (tDate < start || tDate > end) return false;
-      }
+  const filteredTransactions = useLiveQuery(
+    async () => {
+      if (!categories) return []; // Wait until categories are loaded
 
-      // Search filter
-      if (filters.searchTerm) {
-        const search = filters.searchTerm.toLowerCase();
-        const matchesTitle = t.title.toLowerCase().includes(search);
-        const matchesNote = t.note?.toLowerCase().includes(search);
-        if (!matchesTitle && !matchesNote) return false;
-      }
+      const collection = db.transactions.orderBy('date').reverse();
 
-      return true;
-    });
+      const result = await collection.filter(t => {
+        // Type filter
+        if (filters.type !== 'all' && t.type !== filters.type) return false;
+        
+        // Account filter
+        if (filters.accountId !== 'all' && Number(t.accountId) !== Number(filters.accountId)) return false;
+        
+        // Category filter
+        if (filters.categoryId !== 'all') {
+          const catId = Number(t.categoryId);
+          const selectedId = Number(filters.categoryId);
+          const category = categories.find(c => Number(c.id) === catId);
+          const isMatch = catId === selectedId || Number(category?.parentId) === selectedId;
+          if (!isMatch) return false;
+        }
+        
+        // Date filter
+        const tDate = new Date(t.date);
+        const now = new Date();
+        if (filters.dateRange === 'month') {
+          if (tDate.getMonth() !== now.getMonth() || tDate.getFullYear() !== now.getFullYear()) return false;
+        } else if (filters.dateRange === 'week') {
+          const weekAgo = new Date();
+          weekAgo.setDate(now.getDate() - 7);
+          if (tDate < weekAgo) return false;
+        } else if (filters.dateRange === 'year') {
+          if (tDate.getFullYear() !== now.getFullYear()) return false;
+        } else if (filters.dateRange === 'custom' && filters.startDate && filters.endDate) {
+          const start = new Date(filters.startDate);
+          start.setHours(0, 0, 0, 0);
+          const end = new Date(filters.endDate);
+          end.setHours(23, 59, 59, 999);
+          if (tDate < start || tDate > end) return false;
+        }
 
-    return result.sort((a, b) => b.date.getTime() - a.date.getTime() || (Number(b.id) - Number(a.id)));
-  }, [transactions, filters, categories]);
+        // Search filter
+        if (filters.searchTerm) {
+          const search = filters.searchTerm.toLowerCase();
+          const matchesTitle = t.title.toLowerCase().includes(search);
+          const matchesNote = t.note?.toLowerCase().includes(search);
+          if (!matchesTitle && !matchesNote) return false;
+        }
+
+        return true;
+      }).limit(limit).toArray();
+      
+      // Dexie limits cursors, but we should double check sort since we reversed on date
+      return result.sort((a, b) => b.date.getTime() - a.date.getTime() || (Number(b.id) - Number(a.id)));
+    },
+    [filters, categories, limit],
+    []
+  );
 
   const getCategory = (id: string | number) => categories?.find(c => String(c.id) === String(id));
   const getAccount = (id: string | number) => accounts?.find(a => String(a.id) === String(id));
@@ -158,6 +167,17 @@ export default function Transactions() {
             </div>
             <p className="text-gray-500 font-medium tracking-tight">No transactions found</p>
             <p className="text-xs text-gray-400 mt-1">Try adjusting your filters or search terms</p>
+          </div>
+        )}
+
+        {filteredTransactions.length >= limit && (
+          <div className="flex justify-center pt-4 pb-8">
+            <button
+              onClick={() => setLimit(l => l + 50)}
+              className="px-6 py-2.5 bg-white border border-gray-200 text-gray-600 font-bold text-sm tracking-tight rounded-2xl shadow-sm active:scale-95 transition-transform"
+            >
+              Load More
+            </button>
           </div>
         )}
       </div>

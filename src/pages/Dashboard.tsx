@@ -38,77 +38,95 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [chartType, setChartType] = useState<'expense' | 'income'>('expense');
   const transactions = useLiveQuery(() => 
-    db.transactions.toArray().then(items => 
-      items.sort((a, b) => b.date.getTime() - a.date.getTime() || (Number(b.id) - Number(a.id))).slice(0, 10)
-    )
+    db.transactions.orderBy('date').reverse().limit(10).toArray()
   );
   
-  const allTransactions = useLiveQuery(() => db.transactions.toArray());
   const categories = useLiveQuery(() => db.categories.toArray());
   const accounts = useLiveQuery(() => db.accounts.toArray());
   const settings = useLiveQuery(() => db.settings.get(1));
 
-  const stats = useMemo(() => {
-    if (!allTransactions) return { balance: 0, income: 0, expense: 0, savings: 0 };
-    const income = allTransactions
-      .filter(t => t.type === 'income')
-      .reduce((acc, curr) => acc + curr.amount, 0);
-    const expense = allTransactions
-      .filter(t => t.type === 'expense')
-      .reduce((acc, curr) => acc + curr.amount, 0);
+  const stats = useLiveQuery(async () => {
+    let income = 0;
+    let expense = 0;
+    await db.transactions.each(t => {
+      if (t.type === 'income') income += t.amount;
+      else if (t.type === 'expense') expense += t.amount;
+    });
     return {
       income,
       expense,
       balance: income - expense,
       savings: income > 0 ? ((income - expense) / income) * 100 : 0
     };
-  }, [allTransactions]);
+  }, [], { balance: 0, income: 0, expense: 0, savings: 0 });
 
-  const accStats = useMemo(() => {
-    if (!accounts || !allTransactions) return [];
-    return accounts.map(acc => {
-      const accTransactions = allTransactions.filter(t => Number(t.accountId) === Number(acc.id));
-      const total = accTransactions.reduce((sum, t) => {
-        return sum + (t.type === 'income' ? t.amount : -t.amount);
-      }, acc.balance);
-      return { ...acc, currentBalance: total };
+  const accStats = useLiveQuery(async () => {
+    const accs = await db.accounts.toArray();
+    const balances: Record<number, number> = {};
+    accs.forEach(a => balances[Number(a.id)] = a.balance);
+    
+    await db.transactions.each(t => {
+      const accId = Number(t.accountId);
+      if (balances[accId] !== undefined) {
+        balances[accId] += t.type === 'income' ? t.amount : -t.amount;
+      }
     });
-  }, [accounts, allTransactions]);
+    
+    return accs.map(a => ({ ...a, currentBalance: balances[Number(a.id)] }));
+  }, [], []);
 
-  const chartData = useMemo(() => {
-    if (!allTransactions) return [];
-    // Last 7 days
+  const chartData = useLiveQuery(async () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    d.setHours(0, 0, 0, 0);
+    
+    // Only fetch last 7 days
+    const recentTxs = await db.transactions
+      .where('date')
+      .aboveOrEqual(d)
+      .toArray();
+      
     const days = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      return d.toISOString().split('T')[0];
+      const day = new Date();
+      day.setDate(day.getDate() - i);
+      return day.toISOString().split('T')[0];
     }).reverse();
 
     return days.map(day => {
-      const dayT = allTransactions.filter(t => new Date(t.date).toISOString().split('T')[0] === day);
+      const dayT = recentTxs.filter(t => new Date(t.date).toISOString().split('T')[0] === day);
       return {
         name: new Date(day).toLocaleDateString('en-US', { weekday: 'short' }),
         expense: dayT.filter(t => t.type === 'expense').reduce((a, b) => a + b.amount, 0),
         income: dayT.filter(t => t.type === 'income').reduce((a, b) => a + b.amount, 0),
       };
     });
-  }, [allTransactions]);
+  }, [], []);
 
   const getCategory = (id: string | number) => categories?.find(c => String(c.id) === String(id));
   const getAccount = (id: string | number) => accounts?.find(a => String(a.id) === String(id));
 
-  const categoryChartData = useMemo(() => {
-    if (!allTransactions || !categories) return [];
+  const categoryChartData = useLiveQuery(async () => {
+    if (!categories) return [];
     
-    const filtered = allTransactions.filter(t => t.type === chartType);
-    const stats: { [key: string]: { name: string, value: number, color: string, icon: string, id: string | number } } = {};
+    // For categories pie chart, maybe just current month?
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const monthTxs = await db.transactions
+      .where('date')
+      .aboveOrEqual(startOfMonth)
+      .toArray();
+
+    const filtered = monthTxs.filter(t => t.type === chartType);
+    const stats_map: { [key: string]: { name: string, value: number, color: string, icon: string, id: string | number } } = {};
     
     filtered.forEach(t => {
-      const cat = getCategory(t.categoryId);
+      const cat = categories.find(c => String(c.id) === String(t.categoryId));
       const catName = cat?.name || 'Other';
       const catId = cat?.id || 'unknown';
-      if (!stats[catName]) {
-        stats[catName] = { 
+      if (!stats_map[catName]) {
+        stats_map[catName] = { 
           name: catName, 
           value: 0, 
           color: cat?.color || '#CBD5E1',
@@ -116,13 +134,13 @@ export default function Dashboard() {
           id: catId
         };
       }
-      stats[catName].value += t.amount;
+      stats_map[catName].value += t.amount;
     });
     
-    return Object.values(stats).sort((a, b) => b.value - a.value);
-  }, [allTransactions, categories, chartType]);
+    return Object.values(stats_map).sort((a, b) => b.value - a.value);
+  }, [categories, chartType], []);
 
-  const totalType = categoryChartData.reduce((sum, item) => sum + item.value, 0);
+  const totalType = (categoryChartData || []).reduce((sum: number, item: any) => sum + item.value, 0);
 
   return (
     <div className="space-y-4 pb-4 px-1">
