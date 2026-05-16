@@ -537,10 +537,10 @@ export default function AddTransaction() {
                  {attachment ? (
                    <div className="flex items-center space-x-3 w-full">
                      <div className="relative w-16 h-16 rounded-2xl overflow-hidden shadow-sm ring-2 ring-indigo-100 bg-gray-50 flex items-center justify-center">
-                        {attachmentUri && (attachmentUri.startsWith('data:image') || attachment.match(/\.(jpg|jpeg|png|gif|webp)$/i)) ? (
+                        {attachmentUri && (attachmentUri.startsWith('data:image') || attachment?.match(/\.(jpg|jpeg|png|gif|webp)$/i)) ? (
                           <img src={attachmentUri} className="w-full h-full object-cover" alt="attachment" />
                         ) : (
-                          <FileIcon className="w-8 h-8 text-indigo-400" />
+                          <Camera className="w-8 h-8 text-indigo-400" />
                         )}
                         <button 
                           type="button" 
@@ -581,12 +581,12 @@ export default function AddTransaction() {
                   ref={fileInputRef} 
                   onChange={handleFileChange} 
                   className="hidden" 
-                  accept="image/*,.pdf,.xlsx,.xls,.csv"
+                  accept="image/*"
                  />
                  {!attachment && (
                    <div className="flex-1 flex flex-col justify-center">
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Attachment</p>
-                      <p className="text-[10px] text-gray-300 font-medium leading-tight">Attach receipt (Image, PDF, Excel).</p>
+                      <p className="text-[10px] text-gray-300 font-medium leading-tight">Attach receipt photo.</p>
                    </div>
                  )}
               </div>

@@ -80,16 +80,16 @@ export async function initDefaultSettings() {
       useFingerprint: false,
       lastProcessedRecurring: new Date(),
       numberFormat: 'in',
-      showDecimals: true,
-      showSignSymbol: true,
+      showDecimals: false,
+      showSignSymbol: false,
       monthStartDate: 1
     });
   } else {
     // Add missing settings if updating from older version
     let updated = false;
     if (settings.numberFormat === undefined) { settings.numberFormat = 'in'; updated = true; }
-    if (settings.showDecimals === undefined) { settings.showDecimals = true; updated = true; }
-    if (settings.showSignSymbol === undefined) { settings.showSignSymbol = true; updated = true; }
+    if (settings.showDecimals === undefined) { settings.showDecimals = false; updated = true; }
+    if (settings.showSignSymbol === undefined) { settings.showSignSymbol = false; updated = true; }
     if (settings.monthStartDate === undefined) { settings.monthStartDate = 1; updated = true; }
     if (updated) await db.settings.put(settings);
   }

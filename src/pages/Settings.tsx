@@ -71,7 +71,7 @@ export default function Settings() {
         const result = await Filesystem.writeFile({
           path: fileName,
           data: jsonData,
-          directory: Directory.Documents,
+          directory: Directory.Cache,
           encoding: Encoding.UTF8,
         });
         await Share.share({
@@ -79,7 +79,6 @@ export default function Settings() {
           text: 'Here is your backup file',
           files: [result.uri],
         });
-        toast.success(`Backup saved & shared: ${fileName}`);
       } else {
         const blob = new Blob([jsonData], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -112,7 +111,7 @@ export default function Settings() {
          const result = await Filesystem.writeFile({
             path: fileName,
             data: csv,
-            directory: Directory.Documents,
+            directory: Directory.Cache,
             encoding: Encoding.UTF8,
          });
          await Share.share({
