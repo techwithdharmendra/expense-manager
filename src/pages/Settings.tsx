@@ -287,7 +287,7 @@ export default function Settings() {
       <section className="space-y-3">
         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Data & Backup</h3>
         <div className="bg-white rounded-2xl p-1 shadow-sm border border-gray-50 flex flex-col">
-          <button onClick={exportData} className="flex items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50">
+          <button onClick={exportData} className="flex w-full items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
                 <FileJson className="w-5 h-5" />
@@ -300,7 +300,7 @@ export default function Settings() {
             <Download className="w-4 h-4 text-gray-300" />
           </button>
 
-          <button onClick={exportCSV} className="flex items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50">
+          <button onClick={exportCSV} className="flex w-full items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
                 <FileSpreadsheet className="w-5 h-5" />
@@ -313,7 +313,7 @@ export default function Settings() {
             <Download className="w-4 h-4 text-emerald-300" />
           </button>
           
-          <label className="flex items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50 cursor-pointer">
+          <label className="flex w-full items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50 cursor-pointer">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center">
                 <Upload className="w-5 h-5" />
@@ -326,24 +326,26 @@ export default function Settings() {
             <input type="file" accept=".json" onChange={importData} className="hidden" />
           </label>
 
-          <button onClick={() => setConfirmReset(true)} className="flex items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50">
+          <button onClick={() => setConfirmReset(true)} className="flex w-full items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
                 <RotateCcw className="w-5 h-5" />
               </div>
-              <div>
-                <p className="text-sm font-bold text-gray-700 text-left">Reset with Sample Data</p>
-                <p className="text-[10px] text-gray-400 font-medium">Clear app and load test data</p>
+              <div className="text-left">
+                <p className="text-sm font-bold text-gray-700">Reset with Sample Data</p>
+                <p className="text-[10px] text-gray-400 font-medium whitespace-nowrap">Clear app and load test data</p>
               </div>
             </div>
           </button>
 
-          <button onClick={() => setConfirmClear(true)} className="flex items-center justify-between p-4 text-red-500 active:bg-red-50">
+          <button onClick={() => setConfirmClear(true)} className="flex w-full items-center justify-between p-4 text-red-500 active:bg-red-50 w-full text-left">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-2xl bg-red-50 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-2xl bg-red-50 flex items-center justify-center text-red-500">
                 <Trash2 className="w-5 h-5" />
               </div>
-              <p className="text-sm font-bold">Clear All Data</p>
+              <div className="text-left">
+                <p className="text-sm font-bold text-red-500">Clear All Data</p>
+              </div>
             </div>
           </button>
         </div>

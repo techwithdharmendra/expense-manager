@@ -36,7 +36,8 @@ jobs:
 
       - name: Setup Android Project via Capacitor
         run: |
-          if [ ! -d "android" ]; then npx cap add android; fi
+          rm -rf android
+          npx cap add android
           npx cap sync android
 
       - name: Make Gradle executable
