@@ -68,17 +68,29 @@ export default function Settings() {
       const fileName = `expenseflow_backup_${new Date().toISOString().split('T')[0]}.json`;
 
       if (Capacitor.isNativePlatform()) {
-        const result = await Filesystem.writeFile({
-          path: fileName,
-          data: jsonData,
-          directory: Directory.Cache,
-          encoding: Encoding.UTF8,
-        });
-        await Share.share({
-          title: 'Export Backup',
-          text: 'Here is your backup file',
-          files: [result.uri],
-        });
+        try {
+          const result = await Filesystem.writeFile({
+            path: fileName,
+            data: jsonData,
+            directory: Directory.Cache,
+            encoding: Encoding.UTF8,
+          });
+          
+          // Double check URI
+          const { uri: fileUri } = await Filesystem.getUri({
+            path: fileName,
+            directory: Directory.Cache
+          });
+
+          await Share.share({
+            title: 'Export Backup',
+            files: [fileUri],
+          });
+          toast.success('Backup ready to share');
+        } catch (fileErr: any) {
+          console.error('File write/share error:', fileErr);
+          toast.error(`Export failed: ${fileErr.message || 'Unknown error'}`);
+        }
       } else {
         const blob = new Blob([jsonData], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -108,17 +120,28 @@ export default function Settings() {
        const fileName = `expenses_${new Date().toISOString().split('T')[0]}.csv`;
 
        if (Capacitor.isNativePlatform()) {
-         const result = await Filesystem.writeFile({
-            path: fileName,
-            data: csv,
-            directory: Directory.Cache,
-            encoding: Encoding.UTF8,
-         });
-         await Share.share({
-            title: 'Export Transactions',
-            text: 'Here are your transactions',
-            files: [result.uri],
-         });
+         try {
+           await Filesystem.writeFile({
+              path: fileName,
+              data: csv,
+              directory: Directory.Cache,
+              encoding: Encoding.UTF8,
+           });
+           
+           const { uri } = await Filesystem.getUri({
+             path: fileName,
+             directory: Directory.Cache
+           });
+
+           await Share.share({
+              title: 'Export Transactions',
+              files: [uri],
+           });
+           toast.success('CSV ready to share');
+         } catch (nativeErr: any) {
+           console.error('CSV Native Export Error:', nativeErr);
+           toast.error(`CSV Export Error: ${nativeErr.message || 'Unknown'}`);
+         }
        } else {
          const blob = new Blob([csv], { type: 'text/csv' });
          const url = URL.createObjectURL(blob);
@@ -127,10 +150,10 @@ export default function Settings() {
          a.download = fileName;
          a.click();
          URL.revokeObjectURL(url);
+         toast.success('CSV exported successfully');
        }
-       toast.success('CSV exported successfully');
      } catch (err) {
-       toast.error('CSV export failed');
+       toast.error('CSV generation failed');
      }
   }
 

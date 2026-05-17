@@ -167,9 +167,17 @@ export default function AddTransaction() {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validate only image upload
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please upload an image file (Receipt Photo)');
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+
       // Validate file size (e.g., 5MB)
       if (file.size > 5 * 1024 * 1024) {
         toast.error('File too large (max 5MB)');
+        if (fileInputRef.current) fileInputRef.current.value = '';
         return;
       }
       
