@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { formatCurrency, cn } from '../lib/utils';
-import { isSameMonthCycle } from '../lib/dateUtils';
+import { isSameMonthCycle, getMonthCycleStartEnd } from '../lib/dateUtils';
 import { 
   Target as TargetIcon, 
   AlertCircle,
@@ -20,9 +20,19 @@ import ConfirmDialog from '../components/ConfirmDialog';
 
 export default function Budget() {
   const categoriesLive = useLiveQuery(() => db.categories.toArray());
-  const transactions = useLiveQuery(() => db.transactions.toArray());
   const budgets = useLiveQuery(() => db.budgets.toArray());
   const settings = useLiveQuery(() => db.settings.get(1));
+  const startDay = settings?.monthStartDate || 1;
+
+  const transactions = useLiveQuery(async () => {
+    // Only fetch current month's expenses for budgeting
+    const { start, end } = getMonthCycleStartEnd(new Date(), startDay);
+    return await db.transactions
+      .where('date')
+      .between(start, end, true, true)
+      .and(t => t.type === 'expense')
+      .toArray();
+  }, [startDay]);
 
   const categories = React.useMemo(() => {
     return categoriesLive ? [...categoriesLive].sort((a,b) => (a.order || 0) - (b.order || 0)) : undefined;
@@ -33,20 +43,11 @@ export default function Budget() {
   const [amount, setAmount] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string | number | null>(null);
 
-  const startDay = settings?.monthStartDate || 1;
-
   const budgetStats = useMemo(() => {
     if (!transactions || !budgets) return [];
     
-    // Get this month's transactions using startDay
-    const now = new Date();
-    const monthTransactions = transactions.filter(t => 
-      isSameMonthCycle(t.date, now, startDay) && 
-      t.type === 'expense'
-    );
-
     return budgets.map(b => {
-      const spent = monthTransactions
+      const spent = transactions
         .filter(t => b.categoryId === 'total' || String(t.categoryId) === String(b.categoryId))
         .reduce((sum, t) => sum + t.amount, 0);
       

@@ -59,44 +59,31 @@ export default function Dashboard() {
   const stats = useLiveQuery(async () => {
     let income = 0;
     let expense = 0;
-    let initialBalance = 0;
+    let balance = 0;
     
     const accs = await db.accounts.toArray();
-    accs.forEach(a => initialBalance += a.balance);
+    accs.forEach(a => balance += (a.balance || 0));
 
-    await db.transactions.each(t => {
+    // Optimize: only fetch current month's income/expense for the summary
+    const startDay = settings?.monthStartDate || 1;
+    const { start, end } = getMonthCycleStartEnd(new Date(), startDay);
+    
+    await db.transactions.where('date').between(start, end, true, true).each(t => {
       if (t.type === 'income') income += t.amount;
       else if (t.type === 'expense') expense += t.amount;
     });
+
     return {
       income,
       expense,
-      balance: initialBalance + income - expense,
+      balance,
       savings: income > 0 ? ((income - expense) / income) * 100 : 0
     };
-  }, [], { balance: 0, income: 0, expense: 0, savings: 0 });
+  }, [settings?.monthStartDate], { balance: 0, income: 0, expense: 0, savings: 0 });
 
   const accStats = useLiveQuery(async () => {
     const accs = await db.accounts.toArray();
-    const balances: Record<number, number> = {};
-    accs.forEach(a => balances[Number(a.id)] = a.balance);
-    
-    await db.transactions.each(t => {
-      const accId = Number(t.accountId);
-      const toAccId = Number(t.toAccountId);
-      if (balances[accId] !== undefined) {
-        if (t.type === 'transfer') {
-          balances[accId] -= t.amount;
-        } else {
-          balances[accId] += t.type === 'income' ? t.amount : -t.amount;
-        }
-      }
-      if (t.type === 'transfer' && toAccId && balances[toAccId] !== undefined) {
-        balances[toAccId] += t.amount;
-      }
-    });
-    
-    return accs.map(a => ({ ...a, currentBalance: balances[Number(a.id)] })).sort((a,b) => (a.order || 0) - (b.order || 0));
+    return accs.map(a => ({ ...a, currentBalance: a.balance || 0 })).sort((a,b) => (a.order || 0) - (b.order || 0));
   }, [], []);
 
   const chartData = useLiveQuery(async () => {
@@ -136,9 +123,10 @@ export default function Dashboard() {
     const startDay = settings?.monthStartDate || 1;
     const { start: startOfMonth, end: endOfMonth } = getMonthCycleStartEnd(new Date(), startDay);
 
-    // Get all transactions first, Dexie's between is currently inclusive/exclusive by default, we can just filter manually for 100% safety
-    const allTxs = await db.transactions.toArray();
-    const monthTxs = allTxs.filter(t => t.date >= startOfMonth && t.date <= endOfMonth);
+    const monthTxs = await db.transactions
+      .where('date')
+      .between(startOfMonth, endOfMonth, true, true)
+      .toArray();
 
     const filtered = monthTxs.filter(t => t.type === chartType);
     const stats_map: { [key: string]: { name: string, value: number, color: string, icon: string, id: string | number } } = {};

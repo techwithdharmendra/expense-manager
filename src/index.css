@@ -47,7 +47,27 @@
   --color-emerald-50: #064e3b;
 }
 
-:root.dark .bg-white, :root.dark .hover\:bg-white:hover { background-color: #0f172a !important; }
+:root.dark .bg-white:not(.max-w-md):not(.rounded-full), 
+:root.dark .hover\:bg-white:hover:not(.rounded-full) { 
+  background-color: transparent !important; 
+}
+
+:root.dark .bg-white { 
+  background-color: #0d1117 !important; 
+}
+
+:root.dark .rounded-full.bg-white {
+  background-color: #ffffff !important;
+}
+
+:root.dark .rounded-2xl.bg-white,
+:root.dark .rounded-xl.bg-white,
+:root.dark .rounded-\[16px\].bg-white {
+  background-color: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: none !important;
+}
+
 :root.dark .bg-slate-50, :root.dark .hover\:bg-slate-50:hover { background-color: #020617 !important; }
 :root.dark body { background-color: #020617 !important; color: var(--color-gray-900); }
 :root.dark .ring-white { --tw-ring-color: #020617 !important; }

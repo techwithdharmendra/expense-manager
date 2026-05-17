@@ -182,10 +182,26 @@ export default function Analytics() {
   }, [searchParams, initialTab, initialAccountId, initialCategoryId]);
 
   const filteredTransactions = useLiveQuery(async () => {
-    let collection = db.transactions.orderBy('date').reverse();
+    let collection;
+    let isDateIndexed = false;
+
+    // Optimize: Prioritize date range filtering using index
+    if (filters.dateRange === 'month' || (filters.dateRange === 'custom' && filters.startDate && filters.endDate)) {
+      let start, end;
+      if (filters.dateRange === 'month') {
+        const cycle = getMonthCycleStartEnd(selectedMonthDate, startDay);
+        start = cycle.start;
+        end = cycle.end;
+      } else {
+        start = new Date(filters.startDate + 'T00:00:00');
+        end = new Date(filters.endDate + 'T23:59:59');
+      }
+      collection = db.transactions.where('date').between(start, end, true, true).reverse();
+      isDateIndexed = true;
+    } else {
+      collection = db.transactions.orderBy('date').reverse();
+    }
     
-    // Attempt basic date range opt using index ranges!
-    // Wait, let's just do a filter function which relies on Dexie iteration
     const result = await collection.filter(t => {
       const matchType = filters.type === 'all' ? true : filters.type === t.type;
       const matchAccount = filters.accountId.length === 0 || 
@@ -201,33 +217,23 @@ export default function Analytics() {
                          (t.note && t.note.toLowerCase().includes(filters.searchTerm.toLowerCase()));
 
       let matchDate = true;
-      const refDate = selectedMonthDate;
-      const tDate = new Date(t.date);
-
-      if (filters.dateRange === 'month') {
-        matchDate = isSameMonthCycle(tDate, refDate, startDay);
-      } else if (filters.dateRange === 'week') {
-        const now = new Date();
-        const weekAgo = new Date();
-        weekAgo.setDate(now.getDate() - 7);
-        matchDate = tDate >= weekAgo;
-      } else if (filters.dateRange === 'year') {
-        const now = new Date();
-        matchDate = tDate.getFullYear() === now.getFullYear();
-      } else if (filters.dateRange === 'custom') {
-        if (filters.startDate && filters.endDate) {
-          const start = new Date(filters.startDate + 'T00:00:00');
-          start.setHours(0, 0, 0, 0);
-          const end = new Date(filters.endDate + 'T00:00:00');
-          end.setHours(23, 59, 59, 999);
-          matchDate = tDate >= start && tDate <= end;
+      if (!isDateIndexed) {
+        const tDate = new Date(t.date);
+        if (filters.dateRange === 'week') {
+          const now = new Date();
+          const weekAgo = new Date();
+          weekAgo.setDate(now.getDate() - 7);
+          matchDate = tDate >= weekAgo;
+        } else if (filters.dateRange === 'year') {
+          const now = new Date();
+          matchDate = tDate.getFullYear() === now.getFullYear();
         }
       }
 
       return matchType && matchAccount && matchCategory && matchDate && !!matchSearch;
     }).toArray();
     
-    return result.sort((a,b) => b.date.getTime() - a.date.getTime() || (Number(b.id) - Number(a.id)));
+    return result;
   }, [filters, categories, selectedMonthDate, startDay], []);
 
   const trendData = useMemo(() => {

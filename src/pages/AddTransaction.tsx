@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
+import { addTransaction, updateTransaction, deleteTransaction } from '../lib/dbUtils';
 import { TransactionType, Transaction } from '../types';
 import { cn, getCurrencySymbol, formatNumberOnly } from '../lib/utils';
 import { saveFile, getFileUri, getRawFileUri, deleteFile } from '../lib/fileStorage';
@@ -15,15 +16,13 @@ import {
   Camera,
   X,
   FileIcon,
-  Eye,
-  Download
+  Eye
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { getIconByName } from '../lib/icons';
 import { format, parseISO } from 'date-fns';
 
 import { Capacitor } from '@capacitor/core';
-import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { toast } from 'sonner';
 
@@ -279,15 +278,28 @@ export default function AddTransaction() {
 
     try {
       if (id) {
-         await db.transactions.put({ ...data, id: Number(id) });
+         await updateTransaction(Number(id), data);
          toast.success('Transaction updated');
       } else {
-         await db.transactions.add(data);
+         await addTransaction(data);
          toast.success('Transaction saved');
       }
       navigate(-1);
     } catch (err) {
       toast.error('Failed to save transaction');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!id) return;
+    if (window.confirm('Are you sure you want to delete this transaction?')) {
+      try {
+        await deleteTransaction(Number(id));
+        toast.success('Transaction deleted');
+        navigate(-1);
+      } catch (err) {
+        toast.error('Failed to delete transaction');
+      }
     }
   };
 
@@ -604,7 +616,7 @@ export default function AddTransaction() {
           )}
         </div>
 
-        <div className="pt-2">
+        <div className="pt-2 space-y-3">
           <button 
             type="submit"
             className="w-full bg-indigo-600 text-white py-3.5 rounded-2xl font-bold shadow-xl shadow-indigo-100 active:scale-[0.98] transition-transform flex items-center justify-center space-x-2"
@@ -612,90 +624,36 @@ export default function AddTransaction() {
             <Check className="w-5 h-5" />
             <span>Save Transaction</span>
           </button>
+          
+          {id && (
+            <button 
+              type="button"
+              onClick={handleDelete}
+              className="w-full bg-rose-50 text-rose-500 py-3.5 rounded-2xl font-bold active:scale-[0.98] transition-transform flex items-center justify-center space-x-2 border border-rose-100/50"
+            >
+              <X className="w-5 h-5" />
+              <span>Delete Transaction</span>
+            </button>
+          )}
         </div>
       </form>
 
       {/* Image Preview Modal */}
       {showPreview && (
         <div className="fixed inset-0 z-[100] bg-black flex flex-col pt-safe animate-in fade-in duration-200">
-          <div className="flex items-center space-x-3 p-4 text-white">
-            <button 
-              onClick={() => setShowPreview(false)} 
-              className="p-2 -ml-2 rounded-full bg-white/10 active:bg-white/20 transition-colors shrink-0"
-            >
+          <div className="flex items-center justify-between p-4 text-white">
+            <button onClick={() => setShowPreview(false)} className="p-2 -ml-2 rounded-full bg-white/10 active:bg-white/20 transition-colors">
               <ArrowLeft className="w-5 h-5" />
             </button>
-            
-            <div className="flex-1 min-w-0 text-center">
-              <span className="text-sm font-bold uppercase tracking-widest block truncate">
-                {attachment || 'Receipt'}
-              </span>
-            </div>
-
-            <button 
-              onClick={async () => {
-                try {
-                  if (Capacitor.isNativePlatform()) {
-                    let fileUri = '';
-                    
-                    if (attachmentFile) {
-                      // Temporary save to cache for sharing
-                      const fileName = `temp_${Date.now()}_${attachmentFile.name}`;
-                      const reader = new FileReader();
-                      const base64Data = await new Promise<string>((resolve) => {
-                        reader.readAsDataURL(attachmentFile);
-                        reader.onload = () => resolve((reader.result as string).split(',')[1]);
-                      });
-                      
-                      const writeResult = await Filesystem.writeFile({
-                        path: fileName,
-                        data: base64Data,
-                        directory: Directory.Cache
-                      });
-                      fileUri = writeResult.uri;
-                    } else if (attachment && !attachment.startsWith('data:')) {
-                      fileUri = await getRawFileUri(attachment);
-                    }
-
-                    if (fileUri) {
-                      await Share.share({
-                        title: attachment || 'Receipt',
-                        files: [fileUri]
-                      });
-                    } else if (attachmentUri?.startsWith('data:')) {
-                      // Handle base64 if it's legacy
-                       toast.error('Share not supported for legacy data');
-                    }
-                  } else if (attachmentUri) {
-                    const a = document.createElement('a');
-                    a.href = attachmentUri;
-                    a.download = attachment || 'receipt';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    toast.success('Download started');
-                  }
-                } catch (e: any) {
-                  console.error('Download/Share error:', e);
-                  toast.error(`Export failed: ${e.message || 'Unknown'}`);
-                }
-              }}
-              className="p-2 -mr-2 rounded-full bg-indigo-600 text-white active:bg-indigo-700 transition-colors shadow-lg shrink-0"
-            >
-              <Download className="w-5 h-5" />
-            </button>
+            <span className="text-sm font-bold uppercase tracking-widest">{attachment}</span>
+            <div className="w-9" /> {/* Spacer to keep title centered */}
           </div>
-          
           <div className="flex-1 flex items-center justify-center p-4">
             <img 
               src={attachmentUri} 
               className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" 
               alt="Preview" 
             />
-          </div>
-          
-          <div className="p-6 text-center text-white/40 text-[10px] font-bold uppercase tracking-widest bg-gradient-to-t from-black to-transparent">
-            Tap the download icon to save or share
           </div>
         </div>
       )}

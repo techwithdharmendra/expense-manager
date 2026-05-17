@@ -149,8 +149,8 @@ export default function App() {
   }, [initialized, isLocked]);
 
   useEffect(() => {
-    if (settings) {
-      if (settings.isDarkMode) {
+    if (settings !== undefined) {
+      if (settings?.isDarkMode) {
         document.documentElement.classList.add('dark');
       } else {
         document.documentElement.classList.remove('dark');
@@ -193,7 +193,7 @@ export default function App() {
     <Router>
       <BackButtonHandler />
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-0 sm:p-4 font-sans selection:bg-indigo-100">
-        <Toaster position="top-center" richColors theme="light" />
+        <Toaster position="top-center" richColors theme={settings?.isDarkMode ? 'dark' : 'light'} />
         <div className="w-full max-w-md bg-white h-screen h-[100dvh] sm:min-h-[850px] sm:max-h-[850px] shadow-2xl relative overflow-hidden sm:rounded-[3rem] ring-1 ring-gray-100 flex flex-col">
           <div className="flex-1 overflow-y-auto no-scrollbar bg-gray-50/10">
             <AnimatePresence mode="wait">

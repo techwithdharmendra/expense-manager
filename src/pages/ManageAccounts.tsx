@@ -16,7 +16,6 @@ export default function ManageAccounts() {
   const navigate = useNavigate();
   const accountsLive = useLiveQuery(() => db.accounts.toArray());
   const settings = useLiveQuery(() => db.settings.get(1));
-  const transactions = useLiveQuery(() => db.transactions.toArray());
 
   const [accounts, setAccounts] = useState<Account[]>([]);
 
@@ -70,9 +69,16 @@ export default function ManageAccounts() {
     try {
       if (editingId) {
         const existing = accounts.find(a => a.id === editingId);
-        if (existing && existing.order !== undefined) data.order = existing.order;
-        await db.accounts.update(editingId, data);
-        toast.success('Wallet updated successfully');
+        if (existing) {
+          const newBalance = parseFloat(balance) || 0;
+          // Important: If name/color etc changes it's fine. 
+          // If balance changes manually, we should ideally adjust it or allow base balance change.
+          // For now, let's allow manual balance override if they edit.
+          const updateData: any = { ...data, balance: newBalance };
+          if (existing.order !== undefined) updateData.order = existing.order;
+          await db.accounts.update(editingId, updateData);
+          toast.success('Wallet updated successfully');
+        }
       } else {
         await db.accounts.add(data);
         toast.success('Wallet created successfully');
@@ -131,21 +137,7 @@ export default function ManageAccounts() {
   };
 
   const getAccountBalance = (acc: Account) => {
-    const accTransactions = transactions?.filter(t => 
-      Number(t.accountId) === Number(acc.id) || 
-      (t.type === 'transfer' && Number(t.toAccountId) === Number(acc.id))
-    ) || [];
-    const total = accTransactions.reduce((sum, t) => {
-      if (t.type === 'transfer') {
-        if (Number(t.accountId) === Number(acc.id)) {
-          return sum - t.amount;
-        } else if (Number(t.toAccountId) === Number(acc.id)) {
-          return sum + t.amount;
-        }
-      }
-      return sum + (t.type === 'income' ? t.amount : -t.amount);
-    }, acc.balance);
-    return total;
+    return acc.balance || 0;
   };
 
   return (

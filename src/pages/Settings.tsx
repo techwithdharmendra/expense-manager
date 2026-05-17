@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
+import { auditBalances } from '../lib/dbUtils';
 import { filterStore } from '../lib/filterStore';
 import { 
   Download, 
@@ -12,9 +13,12 @@ import {
   Trash2, 
   ChevronRight,
   Moon,
+  Sun,
   FileSpreadsheet,
   Wallet,
-  Tag
+  Tag,
+  RefreshCw,
+  Database
 } from 'lucide-react';
 import { cn, formatCurrency } from '../lib/utils';
 import { motion } from 'motion/react';
@@ -31,10 +35,30 @@ export default function Settings() {
   const [confirmClear, setConfirmClear] = useState(false);
   const [importPending, setImportPending] = useState<any>(null);
 
+  const [isAuditing, setIsAuditing] = useState(false);
+
+  const handleAuditBalances = async () => {
+    setIsAuditing(true);
+    try {
+      await auditBalances();
+      toast.success('Account balances recalculated successfully');
+    } catch (err) {
+      toast.error('Balance audit failed');
+    } finally {
+      setIsAuditing(false);
+    }
+  };
+
   const toggleHideBalance = async () => {
     if (settings) {
       await db.settings.update(1, { hideBalance: !settings.hideBalance });
       toast.success(settings.hideBalance ? 'Balance visible' : 'Balance hidden');
+    }
+  };
+
+  const toggleTheme = async () => {
+    if (settings) {
+      await db.settings.update(1, { isDarkMode: !settings.isDarkMode });
     }
   };
 
@@ -64,8 +88,8 @@ export default function Settings() {
         settings: settingsData,
         exportedAt: new Date().toISOString()
       };
-      const jsonData = JSON.stringify(data, null, 2);
-      const fileName = `expenseflow_backup_${new Date().toISOString().split('T')[0]}.json`;
+      const jsonData = JSON.stringify(data);
+      const fileName = `expenseflow_backup_${new Date().getTime()}.json`;
 
       if (Capacitor.isNativePlatform()) {
         try {
@@ -89,14 +113,12 @@ export default function Settings() {
               files: [fileUri],
             });
           } catch (shareErr) {
-            // Share might be cancelled or not supported by some app, 
-            // but the file is already exported to cache.
-            console.log('Share dismissed');
+            console.log('Share dismissed/cancelled');
           }
-          return; // Stop here for native
+          return; 
         } catch (fileErr: any) {
           console.error('File write error:', fileErr);
-          toast.error(`Export failed: ${fileErr.message || 'Unknown error'}`);
+          toast.error(`Export failed: ${fileErr.message || 'Check storage permissions'}`);
           return;
         }
       } else {
@@ -115,17 +137,20 @@ export default function Settings() {
   };
 
   const exportCSV = async () => {
-     try {
+    try {
        const transactions = await db.transactions.toArray();
        const categories = await db.categories.toArray();
+       const accounts = await db.accounts.toArray();
        
-       let csv = 'Date,Title,Type,Category,Amount,Note\n';
+       let csv = 'Date,Title,Type,Category,Amount,Account,Note\n';
        transactions.forEach(t => {
          const cat = categories.find(c => c.id === t.categoryId);
-         csv += `${t.date.toISOString()},"${t.title}",${t.type},"${cat?.name || ''}",${t.amount},"${t.note || ''}"\n`;
+         const acc = accounts.find(a => a.id === t.accountId);
+         const dateFormatted = new Date(t.date).toISOString().split('T')[0];
+         csv += `${dateFormatted},"${t.title.replace(/"/g, '""')}",${t.type},"${cat?.name || ''}",${t.amount},"${acc?.name || ''}","${(t.note || '').replace(/"/g, '""')}"\n`;
        });
        
-       const fileName = `expenses_${new Date().toISOString().split('T')[0]}.csv`;
+       const fileName = `expenses_${new Date().getTime()}.csv`;
 
        if (Capacitor.isNativePlatform()) {
          try {
@@ -154,7 +179,7 @@ export default function Settings() {
            return;
          } catch (nativeErr: any) {
            console.error('CSV Native Export Error:', nativeErr);
-           toast.error(`CSV Export failed: ${nativeErr.message || 'Unknown'}`);
+           toast.error(`CSV Export failed: ${nativeErr.message || 'Check storage permissions'}`);
            return;
          }
        } else {
@@ -264,7 +289,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="space-y-8 pb-6">
+    <div className="space-y-6 pb-6">
       <ConfirmDialog 
         isOpen={confirmClear}
         title="Delete All Data?"
@@ -285,8 +310,15 @@ export default function Settings() {
         onCancel={() => setImportPending(null)}
       />
 
-      <div className="flex items-center px-1">
+      <div className="flex items-center justify-between px-1 mb-4">
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Settings</h1>
+        <button 
+          onClick={toggleTheme} 
+          className="w-9 h-9 rounded-2xl bg-white shadow-sm flex items-center justify-center text-gray-400 hover:bg-gray-50 transition-colors border border-gray-100" 
+          title="Toggle Theme"
+        >
+          {settings?.isDarkMode ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4" />}
+        </button>
       </div>
 
       {/* Management */}
@@ -472,6 +504,42 @@ export default function Settings() {
       </section>
 
       {/* Data Management */}
+      <section className="space-y-3">
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Maintenance & Optimization</h3>
+        <div className="bg-white rounded-2xl p-1 shadow-sm border border-gray-50 flex flex-col">
+          <button 
+            onClick={handleAuditBalances} 
+            disabled={isAuditing}
+            className="flex w-full items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50 disabled:opacity-50"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                <RefreshCw className={cn("w-5 h-5", isAuditing && "animate-spin")} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-gray-700 text-left">Repair Balances</p>
+                <p className="text-[10px] text-gray-400 font-medium">Recalculate account totals from history</p>
+              </div>
+            </div>
+            {isAuditing && <span className="text-[10px] font-bold text-amber-500 uppercase">Wait...</span>}
+          </button>
+
+          <div className="flex w-full items-center justify-between p-4 active:bg-gray-50">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-2xl bg-cyan-50 text-cyan-600 flex items-center justify-center">
+                <Database className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-gray-700 text-left">Cache Mode</p>
+                <p className="text-[10px] text-gray-400 font-medium">Performance optimized for large history</p>
+              </div>
+            </div>
+            <span className="text-[10px] font-bold text-emerald-500 uppercase bg-emerald-50 px-2 py-1 rounded-lg">Enabled</span>
+          </div>
+        </div>
+      </section>
+
+      {/* Data Management backup */}
       <section className="space-y-3">
         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Data & Backup</h3>
         <div className="bg-white rounded-2xl p-1 shadow-sm border border-gray-50 flex flex-col">

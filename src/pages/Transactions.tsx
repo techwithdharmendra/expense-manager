@@ -119,9 +119,27 @@ export default function Transactions() {
 
   const filteredTransactions = useLiveQuery(
     async () => {
-      if (!categories) return []; // Wait until categories are loaded
+      if (!categories) return [];
 
-      const collection = db.transactions.orderBy('date').reverse();
+      let collection;
+      let isDateIndexed = false;
+
+      // Optimize: Only fetch current month if viewing month or custom month
+      if (filters.dateRange === 'month' || (filters.dateRange === 'custom' && filters.startDate && filters.endDate)) {
+        let start, end;
+        if (filters.dateRange === 'month') {
+          const cycle = getMonthCycleStartEnd(selectedMonthDate, startDay);
+          start = cycle.start;
+          end = cycle.end;
+        } else {
+          start = new Date(filters.startDate + 'T00:00:00');
+          end = new Date(filters.endDate + 'T23:59:59');
+        }
+        collection = db.transactions.where('date').between(start, end, true, true).reverse();
+        isDateIndexed = true;
+      } else {
+        collection = db.transactions.orderBy('date').reverse();
+      }
 
       const result = await collection.filter(t => {
         // Type filter
@@ -142,24 +160,17 @@ export default function Transactions() {
           if (!isMatch) return false;
         }
         
-        // Date filter
-        const tDate = new Date(t.date);
-        const now = new Date();
-        const refDate = selectedMonthDate;
-        if (filters.dateRange === 'month') {
-          if (!isSameMonthCycle(tDate, refDate, startDay)) return false;
-        } else if (filters.dateRange === 'week') {
-          const weekAgo = new Date();
-          weekAgo.setDate(now.getDate() - 7);
-          if (tDate < weekAgo) return false;
-        } else if (filters.dateRange === 'year') {
-          if (tDate.getFullYear() !== now.getFullYear()) return false;
-        } else if (filters.dateRange === 'custom' && filters.startDate && filters.endDate) {
-          const start = new Date(filters.startDate + 'T00:00:00');
-          start.setHours(0, 0, 0, 0);
-          const end = new Date(filters.endDate + 'T00:00:00');
-          end.setHours(23, 59, 59, 999);
-          if (tDate < start || tDate > end) return false;
+        // Date filter (already handled by between if isDateIndexed is true)
+        if (!isDateIndexed) {
+          const tDate = new Date(t.date);
+          const now = new Date();
+          if (filters.dateRange === 'week') {
+            const weekAgo = new Date();
+            weekAgo.setDate(now.getDate() - 7);
+            if (tDate < weekAgo) return false;
+          } else if (filters.dateRange === 'year') {
+            if (tDate.getFullYear() !== now.getFullYear()) return false;
+          }
         }
 
         // Search filter
@@ -173,8 +184,7 @@ export default function Transactions() {
         return true;
       }).limit(limit).toArray();
       
-      // Dexie limits cursors, but we should double check sort since we reversed on date
-      return result.sort((a, b) => b.date.getTime() - a.date.getTime() || (Number(b.id) - Number(a.id)));
+      return result;
     },
     [filters, categories, limit, selectedMonthDate, startDay],
     []
