@@ -15,13 +15,15 @@ import {
   Camera,
   X,
   FileIcon,
-  Eye
+  Eye,
+  Download
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { getIconByName } from '../lib/icons';
 import { format, parseISO } from 'date-fns';
 
 import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { toast } from 'sonner';
 
@@ -616,25 +618,74 @@ export default function AddTransaction() {
       {/* Image Preview Modal */}
       {showPreview && (
         <div className="fixed inset-0 z-[100] bg-black flex flex-col pt-safe animate-in fade-in duration-200">
-          <div className="flex items-center justify-between p-4 text-white">
-            <button onClick={() => setShowPreview(false)} className="p-2 -ml-2 rounded-full bg-white/10 active:bg-white/20 transition-colors">
+          <div className="flex items-center space-x-3 p-4 text-white">
+            <button 
+              onClick={() => setShowPreview(false)} 
+              className="p-2 -ml-2 rounded-full bg-white/10 active:bg-white/20 transition-colors shrink-0"
+            >
               <ArrowLeft className="w-5 h-5" />
             </button>
-            <span className="text-sm font-bold uppercase tracking-widest">{attachment}</span>
+            
+            <div className="flex-1 min-w-0 text-center">
+              <span className="text-sm font-bold uppercase tracking-widest block truncate">
+                {attachment || 'Receipt'}
+              </span>
+            </div>
+
             <button 
               onClick={async () => {
-                if (Capacitor.isNativePlatform() && attachment && !attachment.startsWith('data:')) {
-                  const rawUri = await getRawFileUri(attachment);
-                  await Share.share({ title: attachment, files: [rawUri] });
-                } else if (attachmentUri) {
-                  window.open(attachmentUri, '_blank');
+                try {
+                  if (Capacitor.isNativePlatform()) {
+                    let fileUri = '';
+                    
+                    if (attachmentFile) {
+                      // Temporary save to cache for sharing
+                      const fileName = `temp_${Date.now()}_${attachmentFile.name}`;
+                      const reader = new FileReader();
+                      const base64Data = await new Promise<string>((resolve) => {
+                        reader.readAsDataURL(attachmentFile);
+                        reader.onload = () => resolve((reader.result as string).split(',')[1]);
+                      });
+                      
+                      const writeResult = await Filesystem.writeFile({
+                        path: fileName,
+                        data: base64Data,
+                        directory: Directory.Cache
+                      });
+                      fileUri = writeResult.uri;
+                    } else if (attachment && !attachment.startsWith('data:')) {
+                      fileUri = await getRawFileUri(attachment);
+                    }
+
+                    if (fileUri) {
+                      await Share.share({
+                        title: attachment || 'Receipt',
+                        files: [fileUri]
+                      });
+                    } else if (attachmentUri?.startsWith('data:')) {
+                      // Handle base64 if it's legacy
+                       toast.error('Share not supported for legacy data');
+                    }
+                  } else if (attachmentUri) {
+                    const a = document.createElement('a');
+                    a.href = attachmentUri;
+                    a.download = attachment || 'receipt';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    toast.success('Download started');
+                  }
+                } catch (e: any) {
+                  console.error('Download/Share error:', e);
+                  toast.error(`Export failed: ${e.message || 'Unknown'}`);
                 }
               }}
-              className="p-2 rounded-full bg-white/10 active:bg-white/20 transition-colors"
+              className="p-2 -mr-2 rounded-full bg-indigo-600 text-white active:bg-indigo-700 transition-colors shadow-lg shrink-0"
             >
-              {Capacitor.isNativePlatform() ? <Check className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              <Download className="w-5 h-5" />
             </button>
           </div>
+          
           <div className="flex-1 flex items-center justify-center p-4">
             <img 
               src={attachmentUri} 
@@ -642,8 +693,9 @@ export default function AddTransaction() {
               alt="Preview" 
             />
           </div>
-          <div className="p-6 text-center text-white/40 text-[10px] font-medium uppercase tracking-widest">
-            Tap the top right icon to share or save
+          
+          <div className="p-6 text-center text-white/40 text-[10px] font-bold uppercase tracking-widest bg-gradient-to-t from-black to-transparent">
+            Tap the download icon to save or share
           </div>
         </div>
       )}
