@@ -69,27 +69,35 @@ export default function Settings() {
 
       if (Capacitor.isNativePlatform()) {
         try {
-          const result = await Filesystem.writeFile({
+          await Filesystem.writeFile({
             path: fileName,
             data: jsonData,
             directory: Directory.Cache,
             encoding: Encoding.UTF8,
           });
           
-          // Double check URI
-          const { uri: fileUri } = await Filesystem.getUri({
-            path: fileName,
-            directory: Directory.Cache
-          });
+          toast.success('Backup exported successfully');
+          
+          try {
+            const { uri: fileUri } = await Filesystem.getUri({
+              path: fileName,
+              directory: Directory.Cache
+            });
 
-          await Share.share({
-            title: 'Export Backup',
-            files: [fileUri],
-          });
-          toast.success('Backup ready to share');
+            await Share.share({
+              title: 'Export Backup',
+              files: [fileUri],
+            });
+          } catch (shareErr) {
+            // Share might be cancelled or not supported by some app, 
+            // but the file is already exported to cache.
+            console.log('Share dismissed');
+          }
+          return; // Stop here for native
         } catch (fileErr: any) {
-          console.error('File write/share error:', fileErr);
+          console.error('File write error:', fileErr);
           toast.error(`Export failed: ${fileErr.message || 'Unknown error'}`);
+          return;
         }
       } else {
         const blob = new Blob([jsonData], { type: 'application/json' });
@@ -99,10 +107,10 @@ export default function Settings() {
         a.download = fileName;
         a.click();
         URL.revokeObjectURL(url);
+        toast.success('Backup exported successfully');
       }
-      toast.success('Backup exported successfully');
     } catch (err) {
-      toast.error('Export failed');
+      toast.error('Export generation failed');
     }
   };
 
@@ -128,19 +136,26 @@ export default function Settings() {
               encoding: Encoding.UTF8,
            });
            
-           const { uri } = await Filesystem.getUri({
-             path: fileName,
-             directory: Directory.Cache
-           });
+           toast.success('CSV exported successfully');
 
-           await Share.share({
-              title: 'Export Transactions',
-              files: [uri],
-           });
-           toast.success('CSV ready to share');
+           try {
+             const { uri } = await Filesystem.getUri({
+               path: fileName,
+               directory: Directory.Cache
+             });
+
+             await Share.share({
+                title: 'Export Transactions',
+                files: [uri],
+             });
+           } catch (shareErr) {
+             console.log('CSV Share dismissed');
+           }
+           return;
          } catch (nativeErr: any) {
            console.error('CSV Native Export Error:', nativeErr);
-           toast.error(`CSV Export Error: ${nativeErr.message || 'Unknown'}`);
+           toast.error(`CSV Export failed: ${nativeErr.message || 'Unknown'}`);
+           return;
          }
        } else {
          const blob = new Blob([csv], { type: 'text/csv' });
