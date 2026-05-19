@@ -126,12 +126,6 @@ Email: dharmendrahadiyal2272@gmail.com
 
 ---
 
-## 📄 License
-
-This project is for educational and personal use.
-
----
-
 ## ⭐ Version
 
 Current Version: v1.0.0 Alpha
