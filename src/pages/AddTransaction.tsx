@@ -371,6 +371,7 @@ export default function AddTransaction() {
               <div className="flex-1 space-y-1">
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Amount</label>
                 <input 
+                  autoFocus
                   type="text" 
                   inputMode="decimal"
                   placeholder="0.00"
