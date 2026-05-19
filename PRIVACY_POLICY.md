@@ -1,45 +1,64 @@
 # Privacy Policy
 
-Last Updated: [18 May 2026]
+Last Updated: 18 May 2026
 
-This Privacy Policy describes how this application ("App") handles user information.
+This Privacy Policy explains how the Expense Manager application ("App") handles user information.
 
-## 1. Information Collection
+## 1. About the App
 
-This App does NOT collect any personally identifiable information such as name, email, phone number, or location.
+Expense Manager is an offline personal finance application that allows users to:
 
-## 2. Usage of Data
+- Create and manage expenses
+- View expense history
+- Analyze spending using charts and statistics
 
-- The App may use internet access only to provide core functionality (if applicable).
-- The App may store data locally on your device (such as app settings or user inputs).
-- No data is transmitted to any external server.
+The App works completely offline and is designed for personal expense tracking.
 
-## 3. Permissions
+## 2. Data Collection
 
-The App may request the following permissions:
+This App does NOT collect, store, or share any personal information.
 
-- Internet: Required for basic app functionality (if used)
+No user data is transmitted to external servers because the App operates entirely offline.
 
-No sensitive permissions (such as contacts, camera, microphone, or location) are accessed without user consent.
+## 3. Local Storage
 
-## 4. Data Sharing
+All expense records, history, and analytics data are stored locally on the user's device only.
 
-We do NOT share, sell, or transfer any user data to third parties.
+The developer does not have access to this data.
 
-## 5. Security
+## 4. Permissions
 
-Since no personal data is collected, there is minimal risk related to data breaches.
+This App does not require sensitive permissions such as:
 
-## 6. Children's Privacy
+- Location
+- Camera
+- Contacts
+- Microphone
 
-This App does not knowingly collect any data from children.
+The App is designed to function without collecting personal information.
 
-## 7. Changes to This Policy
+## 5. Third-Party Services
 
-We may update this Privacy Policy from time to time. Any changes will be updated on this page.
+This App does not use:
+- Cloud storage
+- Online databases
+- Advertising services
+- Analytics tracking services
 
-## 8. Contact Us
+## 6. Data Security
 
-If you have any questions or concerns, contact:
+Since all data remains on the user's device, users maintain full control over their information.
+
+## 7. Children's Privacy
+
+This App does not knowingly collect any information from children.
+
+## 8. Changes to This Policy
+
+This Privacy Policy may be updated in future versions of the App. Any changes will be reflected on this page.
+
+## 9. Contact
+
+For support or questions regarding this Privacy Policy, contact:
 
 Email: dharmendrahadiyal2272@gmail.com
