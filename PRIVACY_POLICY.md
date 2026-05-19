@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last Updated: 18 May 2026
+Last Updated: 19 May 2026
 
 This Privacy Policy explains how the Expense Manager application ("App") handles user information.
 
