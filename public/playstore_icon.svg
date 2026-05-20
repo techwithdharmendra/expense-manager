@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4f46e5" />
+      <stop offset="100%" stop-color="#312e81" />
+    </linearGradient>
+    <linearGradient id="icon-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#e0e7ff" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="6" stdDeviation="15" flood-color="#000000" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  
+  <!-- Base Background for Play Store (no transparency) -->
+  <rect width="512" height="512" fill="#ffffff" />
+  
+  <!-- Modern Squircle (Rounded Rect) Base -->
+  <rect x="24" y="24" width="464" height="464" rx="112" ry="112" fill="url(#bg-grad)" />
+  
+  <!-- Wallet / Graph Logo Graphic -->
+  <g filter="url(#shadow)" transform="translate(136, 156)">
+    <!-- Main Wallet Body -->
+    <path d="M 30,40 L 210,40 C 230,40 240,50 240,70 L 240,170 C 240,190 230,200 210,200 L 30,200 C 10,200 0,190 0,170 L 0,70 C 0,50 10,40 30,40 Z" fill="none" stroke="url(#icon-grad)" stroke-width="24" stroke-linejoin="round" />
+    
+    <!-- Wallet Flap -->
+    <path d="M -10,95 L 250,95" fill="none" stroke="url(#icon-grad)" stroke-width="24" stroke-linecap="round" />
+    
+    <!-- Rising Graph / Cards popping out -->
+    <path d="M 60,40 L 60,10" fill="none" stroke="url(#icon-grad)" stroke-width="24" stroke-linecap="round" />
+    <path d="M 120,40 L 120,-10" fill="none" stroke="url(#icon-grad)" stroke-width="24" stroke-linecap="round" />
+    <path d="M 180,40 L 180,-30" fill="none" stroke="url(#icon-grad)" stroke-width="24" stroke-linecap="round" />
+    
+    <!-- Center Buckle/Clasp -->
+    <rect x="180" y="130" width="60" height="30" rx="15" fill="url(#icon-grad)" />
+  </g>
+</svg>
