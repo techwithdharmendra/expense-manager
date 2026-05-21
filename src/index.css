@@ -47,11 +47,6 @@
   --color-emerald-50: #064e3b;
 }
 
-:root.dark .bg-white:not(.max-w-md):not(.rounded-full), 
-:root.dark .hover\:bg-white:hover:not(.rounded-full) { 
-  background-color: transparent !important; 
-}
-
 :root.dark .bg-white { 
   background-color: #0d1117 !important; 
 }
@@ -60,16 +55,38 @@
   background-color: #ffffff !important;
 }
 
-:root.dark .rounded-2xl.bg-white,
-:root.dark .rounded-xl.bg-white,
-:root.dark .rounded-\[16px\].bg-white {
-  background-color: transparent !important;
+:root.dark .rounded-2xl.bg-white:not(.absolute),
+:root.dark .rounded-xl.bg-white:not(.absolute),
+:root.dark .rounded-\[16px\].bg-white:not(.absolute) {
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+:root.dark .shadow-rose-200,
+:root.dark .shadow-emerald-200,
+:root.dark .shadow-indigo-200,
+:root.dark .shadow-gray-200,
+:root.dark .shadow-xl,
+:root.dark .shadow-2xl,
+:root.dark .shadow-lg {
   box-shadow: none !important;
 }
 
-:root.dark .bg-slate-50, :root.dark .hover\:bg-slate-50:hover { background-color: #020617 !important; }
-:root.dark body { background-color: #020617 !important; color: var(--color-gray-900); }
+:root.dark .bg-slate-50, :root.dark .hover\:bg-slate-50:hover,
+:root.dark .bg-gray-50, :root.dark .hover\:bg-gray-50:hover,
+:root.dark .bg-gray-50\/50,
+:root.dark .bg-gray-100, :root.dark .hover\:bg-gray-100:hover { 
+  background-color: #020617 !important; 
+}
+
+:root.dark .focus\:bg-white:focus {
+  background-color: #0d1117 !important;
+}
+
+:root.dark input {
+  color: #f9fafb !important;
+}
+
+:root.dark body { background-color: #020617 !important; color: #f9fafb !important; }
 :root.dark .ring-white { --tw-ring-color: #020617 !important; }
 :root.dark .border-white { border-color: #020617 !important; }
 :root.dark text.recharts-text { fill: var(--color-gray-900) !important; }
@@ -90,7 +107,17 @@ rect:focus,
   border-color: var(--color-gray-100) !important;
 }
 
+:root.dark .recharts-default-tooltip {
+  background-color: #0d1117 !important;
+  color: #f9fafb !important;
+  border-color: #1f2937 !important;
+}
+
 .recharts-tooltip-item {
   color: var(--color-gray-900) !important;
+}
+
+:root.dark .recharts-tooltip-item {
+  color: #f9fafb !important;
 }
 

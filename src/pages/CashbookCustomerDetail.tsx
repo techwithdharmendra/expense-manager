@@ -421,7 +421,7 @@ export default function CashbookCustomerDetail() {
                          const raw = e.target.value.replace(/[^\d.-]/g, '');
                          setAmount(raw);
                        }}
-                       className="w-full bg-gray-50 rounded-2xl px-4 py-3.5 text-2xl font-bold border border-gray-100 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600/30 transition-all text-gray-900"
+                       className="w-full bg-gray-50 focus:bg-white rounded-2xl px-4 py-3.5 text-2xl font-bold border border-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600/30 transition-all text-gray-900"
                      />
                    </div>
                    <div className="space-y-1.5">
@@ -431,7 +431,7 @@ export default function CashbookCustomerDetail() {
                        placeholder="e.g. For project X"
                        value={note}
                        onChange={e => setNote(e.target.value)}
-                       className="w-full bg-gray-50 rounded-2xl px-4 py-3.5 text-sm font-medium border border-gray-100 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600/30 transition-all"
+                       className="w-full bg-gray-50 rounded-2xl px-4 py-3.5 text-sm font-medium border border-gray-100  focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600/30 transition-all"
                      />
                    </div>
                    <div className="grid grid-cols-2 gap-4">
@@ -442,7 +442,7 @@ export default function CashbookCustomerDetail() {
                          required
                          value={date}
                          onChange={e => setDate(e.target.value)}
-                         className="w-full bg-gray-50 rounded-2xl px-4 py-3.5 text-sm font-medium border border-gray-100 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600/30 transition-all"
+                         className="w-full bg-gray-50 rounded-2xl px-4 py-3.5 text-sm font-medium border border-gray-100  focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600/30 transition-all"
                        />
                      </div>
                      <div className="space-y-1.5">
@@ -451,7 +451,7 @@ export default function CashbookCustomerDetail() {
                          type="date" 
                          value={dueDate}
                          onChange={e => setDueDate(e.target.value)}
-                         className="w-full bg-amber-50/30 rounded-2xl px-4 py-3.5 text-sm font-medium border border-amber-100 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500/30 transition-all"
+                         className="w-full bg-amber-50/30 rounded-2xl px-4 py-3.5 text-sm font-medium border border-amber-100  focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500/30 transition-all"
                        />
                      </div>
                    </div>
@@ -463,7 +463,7 @@ export default function CashbookCustomerDetail() {
                          required
                          value={accountId}
                          onChange={e => setAccountId(e.target.value === '' ? '' : Number(e.target.value))}
-                         className="w-full bg-gray-50 rounded-2xl px-4 py-3.5 text-sm font-medium border border-gray-100 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600/30 transition-all appearance-none"
+                         className="w-full bg-gray-50 rounded-2xl px-4 py-3.5 text-sm font-medium border border-gray-100  focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600/30 transition-all appearance-none"
                        >
                          <option value="">{t('selectAccount', lang)}</option>
                          {accounts?.map(acc => (
@@ -534,7 +534,7 @@ export default function CashbookCustomerDetail() {
                       placeholder="e.g. Rahul Sharma"
                       value={editName}
                       onChange={e => setEditName(e.target.value)}
-                      className="w-full bg-gray-50 rounded-2xl px-4 py-3.5 text-sm font-medium border border-gray-100 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600/30 transition-all"
+                      className="w-full bg-gray-50 rounded-2xl px-4 py-3.5 text-sm font-medium border border-gray-100  focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600/30 transition-all"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -544,7 +544,7 @@ export default function CashbookCustomerDetail() {
                       placeholder="+91..."
                       value={editPhone}
                       onChange={e => setEditPhone(e.target.value)}
-                      className="w-full bg-gray-50 rounded-2xl px-4 py-3.5 text-sm font-medium border border-gray-100 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600/30 transition-all"
+                      className="w-full bg-gray-50 rounded-2xl px-4 py-3.5 text-sm font-medium border border-gray-100  focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600/30 transition-all"
                     />
                   </div>
                   

@@ -2,7 +2,7 @@ export const translations = {
   en: {
     // Navigation
     home: 'Home',
-    transactions: 'Transactions',
+    transactions: 'History',
     add: 'Add',
     analytics: 'Analytics',
     settings: 'Settings',
@@ -176,7 +176,7 @@ export const translations = {
   hi: {
     // Navigation
     home: 'मुख्य पृष्ठ',
-    transactions: 'लेन-देन',
+    transactions: 'इतिहास',
     add: 'जोड़ें',
     analytics: 'विश्लेषण',
     settings: 'सेटिंग्स',
@@ -350,7 +350,7 @@ export const translations = {
   gu: {
     // Navigation
     home: 'હોમ',
-    transactions: 'વ્યવહારો',
+    transactions: 'ઇતિહાસ',
     add: 'ઉમેરો',
     analytics: 'વિશ્લેષણ',
     settings: 'સેટિંગ્સ',

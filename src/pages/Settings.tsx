@@ -702,10 +702,6 @@ export default function Settings() {
         </div>
       </section>
 
-      <div className="text-center pb-8 opacity-30">
-         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500 italic">ExpenseFlow {t('version', lang) || 'v1.0.0'} (Alpha)</p>
-         <p className="text-[8px] text-gray-400 mt-1 uppercase tracking-widest font-medium">Brought to you by Gemini Build</p>
-      </div>
     </div>
   );
 }

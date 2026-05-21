@@ -77,6 +77,14 @@ export default function Analytics() {
   
   const settings = useLiveQuery(() => db.settings.get(1));
   const lang = settings?.language;
+  const isDark = settings?.isDarkMode;
+  const tooltipStyle = { 
+    borderRadius: '16px', 
+    border: 'none', 
+    boxShadow: '0 4px 12px rgba(0,0,0,0.1)', 
+    backgroundColor: isDark ? '#0d1117' : '#ffffff', 
+    color: isDark ? '#f9fafb' : '#111827'
+  };
   const startDay = settings?.monthStartDate || 1;
 
   const handlePrevMonth = () => {
@@ -500,7 +508,7 @@ export default function Analytics() {
                       />
                       <YAxis hide />
                       <Tooltip 
-                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                        contentStyle={tooltipStyle} itemStyle={{ color: isDark ? '#f9fafb' : '#111827' }}
                         cursor={{ fill: 'rgba(0,0,0,0.02)' }}
                       />
                       <Bar dataKey="income" fill="#10B981" radius={[4, 4, 0, 0]} />
@@ -517,7 +525,7 @@ export default function Analytics() {
                      />
                      <YAxis hide />
                      <Tooltip 
-                       contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                       contentStyle={tooltipStyle} itemStyle={{ color: isDark ? '#f9fafb' : '#111827' }}
                      />
                      <Line type="monotone" dataKey="income" stroke="#10B981" strokeWidth={3} dot={{ r: 4, fill: '#10B981', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
                      <Line type="monotone" dataKey="expense" stroke="#EF4444" strokeWidth={3} dot={{ r: 4, fill: '#EF4444', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
@@ -612,7 +620,7 @@ export default function Analytics() {
                         ))}
                       </Pie>
                       <Tooltip 
-                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                        contentStyle={tooltipStyle} itemStyle={{ color: isDark ? '#f9fafb' : '#111827' }}
                         formatter={(value: number) => formatCurrency(value, settings)}
                       />
                     </PieChart>
@@ -628,7 +636,7 @@ export default function Analytics() {
                         width={60}
                        />
                        <Tooltip 
-                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                        contentStyle={tooltipStyle} itemStyle={{ color: isDark ? '#f9fafb' : '#111827' }}
                         formatter={(value: number) => formatCurrency(value, settings)}
                        />
                        <Bar dataKey="amount" radius={[0, 4, 4, 0]}>

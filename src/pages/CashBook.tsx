@@ -231,7 +231,7 @@ export default function CashBook() {
                       placeholder="e.g. Rahul Sharma"
                       value={newCustomerName}
                       onChange={e => setNewCustomerName(e.target.value)}
-                      className="w-full bg-gray-50 rounded-2xl px-4 py-3.5 text-sm font-medium border border-gray-100 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600/30 transition-all"
+                      className="w-full bg-gray-50 focus:bg-white rounded-2xl px-4 py-3.5 text-sm font-medium border border-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600/30 transition-all"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -241,7 +241,7 @@ export default function CashBook() {
                       placeholder="+91..."
                       value={newCustomerPhone}
                       onChange={e => setNewCustomerPhone(e.target.value)}
-                      className="w-full bg-gray-50 rounded-2xl px-4 py-3.5 text-sm font-medium border border-gray-100 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600/30 transition-all"
+                      className="w-full bg-gray-50 focus:bg-white rounded-2xl px-4 py-3.5 text-sm font-medium border border-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600/30 transition-all"
                     />
                   </div>
                   
