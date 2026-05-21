@@ -595,7 +595,19 @@ export default function AddTransaction() {
                   
                   <button
                     type="button"
-                    onClick={() => setShowAddSubCat(true)}
+                    onClick={() => {
+                      if (categories && categoryId) {
+                          const cat = categories.find(c => c.id === categoryId);
+                          if (cat) {
+                              const parentCat = cat.parentId ? categories.find(c => c.id === cat.parentId) : cat;
+                              if (parentCat) {
+                                  setNewCatColor(parentCat.color || '#6366F1');
+                                  setNewCatIcon(parentCat.icon || 'Tag');
+                              }
+                          }
+                      }
+                      setShowAddSubCat(true);
+                    }}
                     className="flex items-center space-x-2 px-3 py-2 rounded-xl border-2 border-dashed border-gray-200 transition-all shrink-0 w-auto text-gray-400 hover:text-indigo-600 hover:border-indigo-600 hover:bg-indigo-50/50"
                     title="Add Sub-category"
                   >
