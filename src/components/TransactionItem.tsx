@@ -17,7 +17,7 @@ interface TransactionItemProps {
   showDate?: boolean;
 }
 
-export default function TransactionItem({ 
+export default React.memo(function TransactionItem({ 
   transaction, 
   category, 
   parentCategory,
@@ -108,4 +108,4 @@ export default function TransactionItem({
       </div>
     </motion.div>
   );
-}
+});

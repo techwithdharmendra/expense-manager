@@ -50,15 +50,27 @@
 :root.dark .bg-white { 
   background-color: #0d1117 !important; 
 }
+:root.dark .bg-white\/95 { 
+  background-color: rgba(13, 17, 23, 0.95) !important; 
+}
+:root.dark .bg-white\/90 { 
+  background-color: rgba(13, 17, 23, 0.9) !important; 
+}
+:root.dark .bg-white\/80 { 
+  background-color: rgba(13, 17, 23, 0.8) !important; 
+}
+:root.dark .hover\:bg-white:hover {
+  background-color: #0d1117 !important;
+}
 
 :root.dark .rounded-full.bg-white {
   background-color: #ffffff !important;
 }
 
-:root.dark .rounded-2xl.bg-white:not(.absolute),
-:root.dark .rounded-xl.bg-white:not(.absolute),
-:root.dark .rounded-\[16px\].bg-white:not(.absolute) {
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+:root.dark .rounded-2xl.bg-white:not(.absolute):not(.border-indigo-600),
+:root.dark .rounded-xl.bg-white:not(.absolute):not(.border-indigo-600),
+:root.dark .rounded-\[16px\].bg-white:not(.absolute):not(.border-indigo-600) {
+  border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 :root.dark .shadow-rose-200,
@@ -73,18 +85,29 @@
 
 :root.dark .bg-slate-50, :root.dark .hover\:bg-slate-50:hover,
 :root.dark .bg-gray-50, :root.dark .hover\:bg-gray-50:hover,
-:root.dark .bg-gray-50\/50,
-:root.dark .bg-gray-100, :root.dark .hover\:bg-gray-100:hover { 
+:root.dark .bg-gray-50\/50 { 
   background-color: #020617 !important; 
+}
+
+:root.dark .bg-gray-100, :root.dark .hover\:bg-gray-100:hover { 
+  background-color: #0f172a !important; 
 }
 
 :root.dark .focus\:bg-white:focus {
   background-color: #0d1117 !important;
 }
 
-:root.dark input {
+:root.dark input,
+:root.dark select,
+:root.dark textarea {
   color: #f9fafb !important;
 }
+
+:root.dark option {
+  background-color: #020617 !important;
+  color: #f9fafb !important;
+}
+
 
 :root.dark body { background-color: #020617 !important; color: #f9fafb !important; }
 :root.dark .ring-white { --tw-ring-color: #020617 !important; }

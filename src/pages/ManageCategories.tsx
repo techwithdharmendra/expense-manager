@@ -200,7 +200,7 @@ export default function ManageCategories() {
                 <div className="flex items-center space-x-3">
                   <button 
                     onClick={() => setShowIconPicker(true)}
-                    className="w-14 h-14 rounded-xl flex items-center justify-center text-white shadow-md transition-transform active:scale-90"
+                    className="w-14 h-14 rounded-xl flex items-center justify-center text-white shadow-md transition-transform active:scale-90 border border-gray-100"
                     style={{ backgroundColor: color }}
                   >
                     {React.createElement(getIconByName(icon), { className: "w-7 h-7" })}
@@ -252,7 +252,7 @@ export default function ManageCategories() {
                         <button 
                           key={i.name}
                           onClick={() => { setIcon(i.name); setShowIconPicker(false); }}
-                          className={cn("aspect-square rounded-xl bg-gray-50 flex items-center justify-center transition-colors hover:shadow-sm active:scale-95", icon === i.name ? "bg-indigo-600 text-white shadow-indigo-200" : "text-gray-500 hover:bg-white border border-transparent hover:border-gray-200")}
+                          className={cn("aspect-square rounded-xl bg-gray-50 flex items-center justify-center transition-colors hover:shadow-sm active:scale-95 border border-transparent", icon === i.name ? "bg-indigo-600 text-white shadow-indigo-200" : "text-gray-500 hover:bg-white hover:border-gray-200")}
                         >
                           <i.icon className="w-6 h-6" />
                         </button>
@@ -290,7 +290,7 @@ export default function ManageCategories() {
                              <GripVertical className="w-5 h-5" />
                            </div>
                            <div 
-                             className="w-12 h-12 rounded-xl flex items-center justify-center text-white flex-shrink-0"
+                             className="w-12 h-12 rounded-xl flex items-center justify-center text-white flex-shrink-0 border border-gray-100"
                              style={{ backgroundColor: cat.color }}
                            >
                              <IconComponent className="w-6 h-6" />

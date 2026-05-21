@@ -431,7 +431,7 @@ export default function CashbookCustomerDetail() {
                        placeholder="e.g. For project X"
                        value={note}
                        onChange={e => setNote(e.target.value)}
-                       className="w-full bg-gray-50 rounded-2xl px-4 py-3.5 text-sm font-medium border border-gray-100  focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600/30 transition-all"
+                       className="w-full bg-gray-50 focus:bg-white rounded-2xl px-4 py-3.5 text-sm font-medium border border-gray-100  focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600/30 transition-all"
                      />
                    </div>
                    <div className="grid grid-cols-2 gap-4">

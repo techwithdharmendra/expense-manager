@@ -16,10 +16,11 @@ import {
   Camera,
   X,
   FileIcon,
-  Eye
+  Eye,
+  Plus
 } from 'lucide-react';
-import { motion } from 'motion/react';
-import { getIconByName } from '../lib/icons';
+import { motion, AnimatePresence } from 'motion/react';
+import { getIconByName, CATEGORY_ICONS } from '../lib/icons';
 import { format, parseISO } from 'date-fns';
 
 import { Capacitor } from '@capacitor/core';
@@ -50,6 +51,14 @@ export default function AddTransaction() {
   const [amount, setAmount] = useState('');
   const [title, setTitle] = useState('');
   const [categoryId, setCategoryId] = useState<string | number>('');
+  
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [showAddSubCat, setShowAddSubCat] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatIcon, setNewCatIcon] = useState('Tag');
+  const [newCatColor, setNewCatColor] = useState('#6366F1');
+  const [showIconPickerForQuickAdd, setShowIconPickerForQuickAdd] = useState(false);
+
   const [accountId, setAccountId] = useState<string | number>('');
   const [toAccountId, setToAccountId] = useState<string | number>('');
   const [date, setDate] = useState(() => {
@@ -244,6 +253,58 @@ export default function AddTransaction() {
     }
     
     setAmount(rawValue);
+  };
+
+  const resetQuickAddForm = () => {
+    setNewCatName('');
+    setNewCatIcon('Tag');
+    setNewCatColor('#6366F1');
+  };
+
+  const handleQuickAddCategory = async () => {
+    if (!newCatName) {
+      toast.error('Please enter category name');
+      return;
+    }
+    const newId = await db.categories.add({
+      name: newCatName,
+      type: type,
+      icon: newCatIcon,
+      color: newCatColor
+    });
+    setCategoryId(newId);
+    setShowAddCategory(false);
+    resetQuickAddForm();
+    toast.success('Category added');
+  };
+
+  const handleQuickAddSubCategory = async () => {
+    if (!newCatName) {
+      toast.error('Please enter sub-category name');
+      return;
+    }
+    let parentId = categoryId;
+    if (categories) {
+       const selectedCat = categories.find(c => c.id === categoryId);
+       if (selectedCat && selectedCat.parentId) parentId = selectedCat.parentId;
+    }
+    
+    if (!parentId) {
+       toast.error('Please select a parent category first');
+       return;
+    }
+
+    const newId = await db.categories.add({
+      name: newCatName,
+      type: type,
+      icon: newCatIcon,
+      color: newCatColor,
+      parentId: Number(parentId)
+    });
+    setCategoryId(newId);
+    setShowAddSubCat(false);
+    resetQuickAddForm();
+    toast.success('Sub-category added');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -478,15 +539,25 @@ export default function AddTransaction() {
                       )}
                     >
                       <div 
-                        className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-sm"
+                        className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-sm border border-gray-100"
                         style={{ backgroundColor: c.color }}
                       >
                         <IconComp className="w-5 h-5" />
                       </div>
-                      <span className="text-[10px] font-bold text-gray-700 truncate w-full text-center">{c.name}</span>
+                      <span className="text-[10px] font-bold text-gray-900 truncate w-full text-center">{c.name}</span>
                     </button>
                   );
                 })}
+
+                <button
+                  type="button"
+                  onClick={() => setShowAddCategory(true)}
+                  className="flex flex-col items-center justify-center p-3 rounded-2xl border-2 border-dashed border-gray-200 transition-all space-y-2 min-w-[84px] shrink-0 text-gray-400 hover:text-indigo-600 hover:border-indigo-600 hover:bg-indigo-50/50"
+                  title="Add Category"
+                >
+                   <Plus className="w-8 h-8 mb-1" />
+                  <span className="text-[10px] font-bold text-gray-900 truncate w-full text-center">Add</span>
+                </button>
              </div>
           </div>
 
@@ -509,18 +580,28 @@ export default function AddTransaction() {
                         )}
                       >
                        <div 
-                          className="w-7 h-7 rounded-lg flex items-center justify-center text-white shadow-sm flex-shrink-0"
+                          className="w-7 h-7 rounded-lg flex items-center justify-center text-white shadow-sm flex-shrink-0 border border-gray-100"
                           style={{ backgroundColor: c.color }}
                         >
                           <IconComp className="w-3.5 h-3.5" />
                         </div>
                         <span className={cn(
                           "text-[11px] font-bold whitespace-nowrap",
-                          isSelected ? "text-indigo-900" : "text-gray-600"
+                          isSelected ? "text-gray-900" : "text-gray-700"
                         )}>{c.name}</span>
                       </button>
                     );
                   })}
+                  
+                  <button
+                    type="button"
+                    onClick={() => setShowAddSubCat(true)}
+                    className="flex items-center space-x-2 px-3 py-2 rounded-xl border-2 border-dashed border-gray-200 transition-all shrink-0 w-auto text-gray-400 hover:text-indigo-600 hover:border-indigo-600 hover:bg-indigo-50/50"
+                    title="Add Sub-category"
+                  >
+                     <Plus className="w-4 h-4 ml-1" />
+                     <span className="text-[11px] font-bold text-gray-900 whitespace-nowrap">Add</span>
+                  </button>
                </div>
             </div>
           )}
@@ -641,6 +722,95 @@ export default function AddTransaction() {
           )}
         </div>
       </form>
+
+      {/* Quick Add Category / SubCategory Modals */}
+      <AnimatePresence>
+        {(showAddCategory || showAddSubCat) && (
+          <div className="fixed inset-0 z-[100] flex items-end justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <motion.div 
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              className="bg-white rounded-xl w-full max-w-md p-6 shadow-2xl space-y-4 relative"
+            >
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-gray-900">
+                  {showAddCategory ? "New Category" : "New Sub-category"}
+                </h2>
+                <button onClick={() => { setShowAddCategory(false); setShowAddSubCat(false); resetQuickAddForm(); }} className="p-1.5 bg-gray-100 rounded-lg text-gray-400">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center space-x-3">
+                  <button 
+                    onClick={() => setShowIconPickerForQuickAdd(true)}
+                    className="w-14 h-14 rounded-xl flex items-center justify-center text-white shadow-md transition-transform active:scale-90 border border-gray-100"
+                    style={{ backgroundColor: newCatColor }}
+                  >
+                    {React.createElement(getIconByName(newCatIcon), { className: "w-7 h-7" })}
+                  </button>
+                  <div className="flex-1 space-y-0.5">
+                    <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest ml-1">{showAddCategory ? "Category Name" : "Sub-category Name"}</label>
+                    <input 
+                      type="text" 
+                      placeholder={showAddCategory ? "e.g. Travel, Food" : "e.g. Office, Personal"} 
+                      value={newCatName}
+                      onChange={e => setNewCatName(e.target.value)}
+                      className="w-full bg-gray-50 rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-indigo-100"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                   <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest ml-1">Accent Color</label>
+                   <div className="flex flex-wrap gap-2.5">
+                      {['#FF6B6B', '#4D96FF', '#FFD93D', '#6BCB77', '#FF4D4D', '#8B5CF6', '#10B981', '#000000'].map(c => (
+                        <button 
+                          key={c}
+                          onClick={() => setNewCatColor(c)}
+                          className={cn(
+                            "w-7 h-7 rounded-full transition-all",
+                            newCatColor === c ? "scale-110 ring-2 ring-offset-2 ring-gray-100" : "opacity-60 hover:opacity-100"
+                          )}
+                          style={{ backgroundColor: c }}
+                        />
+                      ))}
+                   </div>
+                </div>
+              </div>
+
+              <button 
+                onClick={showAddCategory ? handleQuickAddCategory : handleQuickAddSubCategory}
+                className="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold text-sm shadow-lg shadow-indigo-100 active:scale-95 transition-transform"
+              >
+                {showAddCategory ? "Create Category" : "Create Sub-category"}
+              </button>
+
+              {showIconPickerForQuickAdd && (
+                <div className="absolute inset-0 z-10 bg-white/95 backdrop-blur-sm flex flex-col rounded-xl">
+                   <div className="p-4 pt-5 pr-5 flex items-center justify-end shrink-0">
+                     <button onClick={() => setShowIconPickerForQuickAdd(false)} className="p-1.5 bg-gray-50 text-gray-500 rounded-lg hover:bg-gray-100 active:scale-95 transition-all"><X className="w-4 h-4" /></button>
+                   </div>
+                   <div className="flex-1 overflow-y-auto content-start px-6 pb-6 grid grid-cols-5 gap-3 sm:grid-cols-6 lg:grid-cols-8">
+                      {CATEGORY_ICONS.map(i => (
+                        <button 
+                          key={i.name}
+                          onClick={() => { setNewCatIcon(i.name); setShowIconPickerForQuickAdd(false); }}
+                          className={cn("aspect-square rounded-xl bg-gray-50 flex items-center justify-center transition-colors hover:shadow-sm active:scale-95 border border-transparent", newCatIcon === i.name ? "bg-indigo-600 text-white shadow-indigo-200" : "text-gray-500 hover:bg-white hover:border-gray-200")}
+                        >
+                          <i.icon className="w-6 h-6" />
+                        </button>
+                      ))}
+                   </div>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Image Preview Modal */}
       {showPreview && (
