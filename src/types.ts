@@ -45,6 +45,28 @@ export interface Budget {
   startDate: Date;
 }
 
+export interface CashbookCustomer {
+  id?: number;
+  name: string;
+  phone?: string;
+  balance: number; // Positive = we have to TAKE from them (they owe us), Negative = we have to GIVE to them (we owe them)
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CashbookEntry {
+  id?: number;
+  customerId: number;
+  type: 'took' | 'gave'; // 'took' means we took money FROM them (we owe them, balance decreases). 'gave' means we gave money TO them (they owe us, balance increases).
+  amount: number;
+  note?: string;
+  date: Date;
+  dueDate?: Date;
+  isCleared: boolean;
+  accountId?: number | string;
+  linkedTransactionId?: number | string;
+}
+
 export interface AppSettings {
   id?: number;
   currency: string;
@@ -56,5 +78,9 @@ export interface AppSettings {
   numberFormat?: 'us' | 'in' | 'eu';
   showDecimals?: boolean;
   showSignSymbol?: boolean;
+  dateFormat?: 'dd MMM yyyy' | 'MM/dd/yyyy' | 'dd/MM/yyyy' | 'yyyy-MM-dd';
   monthStartDate?: number;
+  cashbookReminderDays?: number;
+  syncCashbookWithExpenses?: boolean;
+  language?: 'en' | 'hi' | 'gu';
 }

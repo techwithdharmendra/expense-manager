@@ -2,7 +2,8 @@
 import React, { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
-import { formatCurrency, cn } from '../lib/utils';
+import { t } from '../lib/i18n';
+import { formatCurrency, cn, formatDate } from '../lib/utils';
 import { getMonthCycleStartEnd } from '../lib/dateUtils';
 import { motion } from 'motion/react';
 import { 
@@ -19,7 +20,10 @@ import {
   CreditCard,
   LayoutGrid,
   Moon,
-  Sun
+  Sun,
+  Settings as SettingsIcon,
+  Bell,
+  Calendar
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
@@ -46,7 +50,10 @@ export default function Dashboard() {
   
   const categoriesLive = useLiveQuery(() => db.categories.toArray());
   const accountsLive = useLiveQuery(() => db.accounts.toArray());
-  const settings = useLiveQuery(() => db.settings.get(1));
+  const setLive = useLiveQuery(() => db.settings.get(1));
+  const cashbookCustomers = useLiveQuery(() => db.cashbookCustomers.toArray());
+  const settings = setLive;
+  const lang = settings?.language;
 
   const categories = useMemo(() => {
     return categoriesLive ? [...categoriesLive].sort((a,b) => (a.order || 0) - (b.order || 0)) : undefined;
@@ -86,6 +93,15 @@ export default function Dashboard() {
     return accs.map(a => ({ ...a, currentBalance: a.balance || 0 })).sort((a,b) => (a.order || 0) - (b.order || 0));
   }, [], []);
 
+  const cashbookSummary = useMemo(() => {
+    if (!cashbookCustomers) return { toGet: 0, toGive: 0 };
+    return cashbookCustomers.reduce((acc, c) => {
+      if (c.balance > 0) acc.toGet += c.balance;
+      else if (c.balance < 0) acc.toGive += Math.abs(c.balance);
+      return acc;
+    }, { toGet: 0, toGive: 0 });
+  }, [cashbookCustomers]);
+
   const chartData = useLiveQuery(async () => {
     const d = new Date();
     d.setDate(d.getDate() - 7);
@@ -106,12 +122,12 @@ export default function Dashboard() {
     return days.map(day => {
       const dayT = recentTxs.filter(t => new Date(t.date).toISOString().split('T')[0] === day);
       return {
-        name: new Date(day).toLocaleDateString('en-US', { weekday: 'short' }),
+        name: new Date(day).toLocaleDateString(lang === 'hi' ? 'hi-IN' : lang === 'gu' ? 'gu-IN' : 'en-GB', { weekday: 'short' }),
         expense: dayT.filter(t => t.type === 'expense').reduce((a, b) => a + b.amount, 0),
         income: dayT.filter(t => t.type === 'income').reduce((a, b) => a + b.amount, 0),
       };
     });
-  }, [], []);
+  }, [lang], []);
 
   const getCategory = (id: string | number) => categories?.find(c => String(c.id) === String(id));
   const getAccount = (id: string | number) => accounts?.find(a => String(a.id) === String(id));
@@ -131,15 +147,15 @@ export default function Dashboard() {
     const filtered = monthTxs.filter(t => t.type === chartType);
     const stats_map: { [key: string]: { name: string, value: number, color: string, icon: string, id: string | number } } = {};
     
-    filtered.forEach(t => {
-      let cat = categories.find(c => String(c.id) === String(t.categoryId));
+    filtered.forEach(tx => {
+      let cat = categories.find(c => String(c.id) === String(tx.categoryId));
       
       let mainCat = cat;
       if (cat && cat.parentId) {
          mainCat = categories.find(c => String(c.id) === String(cat!.parentId)) || cat;
       }
       
-      const catName = mainCat?.name || 'Other';
+      const catName = mainCat?.name || (t('other', lang) || 'Other');
       const catId = mainCat?.id || 'unknown';
       if (!stats_map[catName]) {
         stats_map[catName] = { 
@@ -150,11 +166,11 @@ export default function Dashboard() {
           id: catId
         };
       }
-      stats_map[catName].value += t.amount;
+      stats_map[catName].value += tx.amount;
     });
     
     return Object.values(stats_map).sort((a, b) => b.value - a.value);
-  }, [categories, chartType], []);
+  }, [categories, chartType, lang], []);
 
   const toggleTheme = async () => {
     if (settings) {
@@ -163,6 +179,29 @@ export default function Dashboard() {
   };
 
   const totalType = (categoryChartData || []).reduce((sum: number, item: any) => sum + item.value, 0);
+
+  const dueReminders = useLiveQuery(async () => {
+    const days = settings?.cashbookReminderDays ?? 1;
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const targetDate = new Date(now);
+    targetDate.setDate(now.getDate() + days);
+
+    const customers = await db.cashbookCustomers.toArray();
+    const customerMap = new Map(customers.map(c => [c.id, c.name]));
+
+    const entries = await db.cashbookEntries
+      .where('dueDate')
+      .aboveOrEqual(now)
+      .toArray();
+
+    return entries
+      .filter(e => !e.isCleared && e.dueDate && new Date(e.dueDate) <= targetDate)
+      .map(e => ({
+        ...e,
+        customerName: customerMap.get(e.customerId) || (t('unknown', lang) || 'Unknown')
+      }));
+  }, [settings?.cashbookReminderDays, lang]);
 
   return (
     <div className="space-y-4 pb-4 px-1">
@@ -176,16 +215,47 @@ export default function Dashboard() {
           <button onClick={toggleTheme} className="w-8 h-8 rounded-xl bg-white shadow-sm flex items-center justify-center text-gray-400 hover:bg-gray-50 transition-colors border border-gray-100" title="Toggle Theme">
             {settings?.isDarkMode ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4" />}
           </button>
-          <Link to="/settings/accounts" className="w-8 h-8 rounded-xl bg-white shadow-sm flex items-center justify-center text-gray-400 hover:bg-gray-50 transition-colors border border-gray-100" title="Accounts">
-            <CreditCard className="w-4 h-4" />
-          </Link>
-          <Link to="/settings/categories" className="w-8 h-8 rounded-xl bg-white shadow-sm flex items-center justify-center text-gray-400 hover:bg-gray-50 transition-colors border border-gray-100" title="Categories">
-            <LayoutGrid className="w-4 h-4" />
+          <Link to="/settings" className="w-8 h-8 rounded-xl bg-white shadow-sm flex items-center justify-center text-gray-400 hover:bg-gray-50 transition-colors border border-gray-100" title="Settings">
+            <SettingsIcon className="w-4 h-4" />
           </Link>
         </div>
       </div>
 
       {/* Main Card */}
+      {dueReminders && dueReminders.length > 0 && (
+        <div className="bg-amber-50 rounded-2xl p-4 shadow-sm border border-amber-100/50 mb-4 animate-in fade-in slide-in-from-top-4">
+          <div className="flex items-center space-x-2 mb-3">
+             <Bell className="w-4 h-4 text-amber-500 animate-bounce" />
+             <h3 className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">{t('due', lang) || 'Upcoming Dues'}</h3>
+          </div>
+          <div className="space-y-2">
+            {dueReminders.map(r => (
+              <Link 
+                key={r.id} 
+                to={`/cashbook/${r.customerId}`}
+                className="flex items-center justify-between bg-white/60 p-2.5 rounded-xl block active:scale-95 transition-transform"
+              >
+                <div>
+                  <p className="text-sm font-bold text-gray-900">{r.customerName}</p>
+                  <p className="text-[10px] font-bold text-gray-500 uppercase flex items-center mt-0.5">
+                    <Calendar className="w-3 h-3 mr-1 inline" />
+                    {t('due', lang) || 'Due'}: {formatDate(r.dueDate!, settings)}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className={cn("text-sm font-bold", r.type === 'gave' ? "text-rose-500" : "text-emerald-500")}>
+                    {formatCurrency(r.amount, settings)}
+                  </p>
+                  <p className="text-[9px] font-bold text-gray-400 uppercase">
+                    {r.type === 'gave' ? (t('youWillGet', lang) || 'To Receive') : (t('youWillGive', lang) || 'To Pay')}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       <motion.div 
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -196,7 +266,7 @@ export default function Dashboard() {
         <div className="relative z-10">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <p className="text-gray-400 text-[9px] font-bold uppercase tracking-widest mb-0.5">Total Balance</p>
+              <p className="text-gray-400 text-[9px] font-bold uppercase tracking-widest mb-0.5">{t('totalBalance', lang)}</p>
               <h2 className={cn(
                 "text-2xl font-bold tracking-tight",
                 stats.balance >= 0 ? "text-emerald-500" : "text-rose-500"
@@ -217,7 +287,7 @@ export default function Dashboard() {
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               </div>
               <div className="min-w-0">
-                <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wider leading-none mb-1">Income</p>
+                <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wider leading-none mb-1">{t('income', lang)}</p>
                 <p className="font-bold text-sm text-emerald-500 truncate">{settings?.showSignSymbol !== false ? '+' : ''}{formatCurrency(stats.income, settings)}</p>
               </div>
             </Link>
@@ -226,7 +296,7 @@ export default function Dashboard() {
                 <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
               </div>
               <div className="min-w-0">
-                <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wider leading-none mb-1">Expense</p>
+                <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wider leading-none mb-1">{t('expense', lang)}</p>
                 <p className="font-bold text-sm text-rose-500 truncate">{settings?.showSignSymbol !== false ? '-' : ''}{formatCurrency(stats.expense, settings)}</p>
               </div>
             </Link>
@@ -237,7 +307,7 @@ export default function Dashboard() {
       {/* Accounts Section - Updated to match app theme with grid layout */}
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-50 space-y-5">
         <div className="flex items-center justify-between px-1">
-          <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Accounts</h3>
+          <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t('accounts', lang)}</h3>
           <Link to="/settings/accounts" className="p-1 -mr-1 text-gray-400 hover:text-indigo-600 transition-colors">
             <ChevronRight className="w-4 h-4" />
           </Link>
@@ -273,11 +343,45 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Cashbook Summary Section */}
+      {settings?.syncCashbookWithExpenses && cashbookCustomers && cashbookCustomers.length > 0 && (
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-50 space-y-5">
+          <div className="flex items-center justify-between px-1">
+            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t('cashbook', lang)}</h3>
+            <Link to="/cashbook" className="p-1 -mr-1 text-gray-400 hover:text-indigo-600 transition-colors">
+              <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-y-5 gap-x-4">
+            <Link to="/cashbook" className="flex items-center space-x-3 active:scale-95 transition-transform group">
+              <div className="w-11 h-11 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-500 shrink-0 shadow-sm group-hover:bg-emerald-100 transition-colors">
+                <ArrowDownLeft className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider group-hover:text-indigo-600 transition-colors">{t('youWillGet', lang)}</p>
+                <p className="text-sm font-bold text-emerald-500 leading-tight mt-0.5">{formatCurrency(cashbookSummary.toGet, settings)}</p>
+              </div>
+            </Link>
+            
+            <Link to="/cashbook" className="flex items-center space-x-3 active:scale-95 transition-transform group">
+              <div className="w-11 h-11 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-500 shrink-0 shadow-sm group-hover:bg-rose-100 transition-colors">
+                <ArrowUpRight className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider group-hover:text-indigo-600 transition-colors">{t('youWillGive', lang)}</p>
+                <p className="text-sm font-bold text-rose-500 leading-tight mt-0.5">{formatCurrency(cashbookSummary.toGive, settings)}</p>
+              </div>
+            </Link>
+          </div>
+        </div>
+      )}
+
 
       {/* Overview Charts */}
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-50 space-y-5">
         <div className="flex items-center justify-between px-1">
-          <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Category Overview</h3>
+          <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t('overview', lang) || 'Category Overview'}</h3>
           <div className="flex p-0.5 bg-gray-50 rounded-xl">
              <button 
               onClick={() => setChartType('expense')}
@@ -286,7 +390,7 @@ export default function Dashboard() {
                 chartType === 'expense' ? "bg-white text-rose-500 shadow-sm" : "text-gray-400"
               )}
              >
-               Expense
+               {t('expense', lang) || 'Expense'}
              </button>
              <button 
               onClick={() => setChartType('income')}
@@ -295,14 +399,14 @@ export default function Dashboard() {
                 chartType === 'income' ? "bg-white text-emerald-500 shadow-sm" : "text-gray-400"
               )}
              >
-               Income
+               {t('income', lang) || 'Income'}
              </button>
           </div>
         </div>
 
         <div className="relative h-44 flex items-center justify-center">
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-               <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{chartType}</p>
+               <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{chartType === 'expense' ? (t('expense', lang) || 'Expense') : (t('income', lang) || 'Income')}</p>
                <p className="text-base font-bold text-gray-900 leading-tight flex items-center space-x-1">
                  <span>{formatCurrency(totalType, settings)}</span>
                </p>
@@ -386,7 +490,7 @@ export default function Dashboard() {
               to={`/analytics?tab=${chartType === 'expense' ? 'expenses' : 'income'}`}
               className="text-[10px] font-bold text-indigo-600 uppercase tracking-tight text-center block w-full hover:underline mt-2"
             >
-              See all categories
+              {t('seeAll', lang) || 'See all'}
             </Link>
           )}
         </div>
@@ -395,17 +499,17 @@ export default function Dashboard() {
       {/* Recent Transactions */}
       <div className="space-y-3">
         <div className="flex items-center justify-between px-1">
-          <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Recent Transactions</h3>
+          <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t('recentTransactions', lang)}</h3>
           <Link to="/transactions" className="text-[10px] font-bold text-indigo-600 uppercase tracking-tight flex items-center">
-            See all <ChevronRight className="w-3 h-3 ml-0.5" />
+            {t('viewAll', lang)} <ChevronRight className="w-3 h-3 ml-0.5" />
           </Link>
         </div>
         
         <div className="space-y-2">
           {transactions?.length === 0 ? (
             <div className="text-center py-6 bg-white rounded-2xl border border-dashed border-gray-100">
-               <p className="text-gray-400 text-xs">No transactions yet.</p>
-               <Link to="/add" className="text-[10px] text-indigo-600 font-bold mt-1 inline-block uppercase tracking-wider">Add first</Link>
+               <p className="text-gray-400 text-xs">{t('noTransactionsYet', lang) || 'No transactions yet.'}</p>
+               <Link to="/add" className="text-[10px] text-indigo-600 font-bold mt-1 inline-block uppercase tracking-wider">{t('addFirst', lang) || 'Add first'}</Link>
             </div>
           ) : (
             transactions?.slice(0, 5).map((t) => {

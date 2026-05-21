@@ -1,6 +1,6 @@
 
 import Dexie, { type Table } from 'dexie';
-import { Transaction, Category, Budget, AppSettings, Account } from './types';
+import { Transaction, Category, Budget, AppSettings, Account, CashbookCustomer, CashbookEntry } from './types';
 
 export class ExpenseDB extends Dexie {
   transactions!: Table<Transaction>;
@@ -8,15 +8,19 @@ export class ExpenseDB extends Dexie {
   budgets!: Table<Budget>;
   settings!: Table<AppSettings>;
   accounts!: Table<Account>;
+  cashbookCustomers!: Table<CashbookCustomer>;
+  cashbookEntries!: Table<CashbookEntry>;
 
   constructor() {
     super('ExpenseFlowDB');
-    this.version(3).stores({
+    this.version(4).stores({
       transactions: '++id, title, amount, type, categoryId, accountId, date, isRecurring',
       categories: '++id, name, type, parentId',
       budgets: '++id, categoryId, period',
       settings: 'id',
-      accounts: '++id, name'
+      accounts: '++id, name',
+      cashbookCustomers: '++id, name, phone, balance',
+      cashbookEntries: '++id, customerId, type, date, dueDate, isCleared'
     });
   }
 }
@@ -82,7 +86,11 @@ export async function initDefaultSettings() {
       numberFormat: 'in',
       showDecimals: false,
       showSignSymbol: false,
-      monthStartDate: 1
+      dateFormat: 'dd MMM yyyy',
+      monthStartDate: 1,
+      cashbookReminderDays: 1,
+      syncCashbookWithExpenses: false,
+      language: 'en'
     });
   } else {
     // Add missing settings if updating from older version
@@ -90,7 +98,11 @@ export async function initDefaultSettings() {
     if (settings.numberFormat === undefined) { settings.numberFormat = 'in'; updated = true; }
     if (settings.showDecimals === undefined) { settings.showDecimals = false; updated = true; }
     if (settings.showSignSymbol === undefined) { settings.showSignSymbol = false; updated = true; }
+    if (settings.dateFormat === undefined) { settings.dateFormat = 'dd MMM yyyy'; updated = true; }
     if (settings.monthStartDate === undefined) { settings.monthStartDate = 1; updated = true; }
+    if (settings.cashbookReminderDays === undefined) { settings.cashbookReminderDays = 1; updated = true; }
+    if (settings.syncCashbookWithExpenses === undefined) { settings.syncCashbookWithExpenses = false; updated = true; }
+    if (settings.language === undefined) { settings.language = 'en'; updated = true; }
     if (updated) await db.settings.put(settings);
   }
 }

@@ -40,6 +40,7 @@ import {
 import TransactionItem from '../components/TransactionItem';
 import FilterSection, { FilterState } from '../components/FilterSection';
 import { filterStore } from '../lib/filterStore';
+import { t } from '../lib/i18n';
 
 type TabType = 'expenses' | 'income' | 'combined';
 
@@ -75,6 +76,7 @@ export default function Analytics() {
   const [selectedMonthDate, setSelectedMonthDate] = useState(() => new Date());
   
   const settings = useLiveQuery(() => db.settings.get(1));
+  const lang = settings?.language;
   const startDay = settings?.monthStartDate || 1;
 
   const handlePrevMonth = () => {
@@ -246,7 +248,7 @@ export default function Analytics() {
       const dateKey = tDate.toISOString().split('T')[0];
       if (!groups[dateKey]) {
         groups[dateKey] = { 
-          date: tDate.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }), 
+          date: tDate.toLocaleDateString(lang === 'hi' ? 'hi-IN' : lang === 'gu' ? 'gu-IN' : 'en-GB', { day: 'numeric', month: 'short' }), 
           income: 0, 
           expense: 0 
         };
@@ -256,12 +258,12 @@ export default function Analytics() {
     });
 
     return Object.values(groups).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  }, [filteredTransactions]);
+  }, [filteredTransactions, lang]);
 
   const catStats = useMemo(() => {
     const stats: { [key: string]: { id: string, amount: number, color: string, name: string, type: string, subcategories: any[] } } = {};
-    filteredTransactions.filter(t => t.type !== 'transfer').forEach(t => {
-      let cat = categories.find(c => String(c.id) === String(t.categoryId));
+    filteredTransactions.filter(tx => tx.type !== 'transfer').forEach(tx => {
+      let cat = categories.find(c => String(c.id) === String(tx.categoryId));
       
       let mainCat = cat;
       if (cat && cat.parentId) {
@@ -274,12 +276,12 @@ export default function Analytics() {
           id: catId,
           amount: 0, 
           color: mainCat?.color || '#cbd5e1', 
-          name: mainCat?.name || 'Unknown',
-          type: t.type,
+          name: mainCat?.name || (t('unknown', lang) || 'Unknown'),
+          type: tx.type,
           subcategories: []
         };
       }
-      stats[catId].amount += t.amount;
+      stats[catId].amount += tx.amount;
       
       // Track subcategory breakdown
       if (cat && cat.id !== mainCat?.id) {
@@ -288,7 +290,7 @@ export default function Analytics() {
              subCatStat = { id: cat!.id, name: cat!.name, amount: 0, color: cat!.color, icon: cat!.icon };
              stats[catId].subcategories.push(subCatStat);
          }
-         subCatStat.amount += t.amount;
+         subCatStat.amount += tx.amount;
       }
     });
     const result = Object.values(stats).sort((a, b) => b.amount - a.amount);
@@ -296,7 +298,7 @@ export default function Analytics() {
         stat.subcategories.sort((a, b) => b.amount - a.amount);
     });
     return result;
-  }, [filteredTransactions, categories]);
+  }, [filteredTransactions, categories, lang]);
 
   const totalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const totalExpense = filteredTransactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
@@ -332,19 +334,19 @@ export default function Analytics() {
 
   const periodLabel = useMemo(() => {
     if (filters.dateRange === 'month') {
-      return selectedMonthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      return selectedMonthDate.toLocaleDateString(lang === 'hi' ? 'hi-IN' : lang === 'gu' ? 'gu-IN' : 'en-GB', { month: 'long', year: 'numeric' });
     } else if (filters.dateRange === 'week') {
-      return 'This Week';
+      return t('thisWeek', lang) || 'This Week';
     } else if (filters.dateRange === 'year') {
-      return new Date().toLocaleDateString('en-US', { year: 'numeric' });
+      return new Date().toLocaleDateString(lang === 'hi' ? 'hi-IN' : lang === 'gu' ? 'gu-IN' : 'en-GB', { year: 'numeric' });
     } else if (filters.dateRange === 'custom') {
       if (filters.startDate && filters.endDate) {
-         return `${new Date(filters.startDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(filters.endDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+         return `${new Date(filters.startDate + 'T00:00:00').toLocaleDateString(lang === 'hi' ? 'hi-IN' : lang === 'gu' ? 'gu-IN' : 'en-GB', { month: 'short', day: 'numeric' })} - ${new Date(filters.endDate + 'T00:00:00').toLocaleDateString(lang === 'hi' ? 'hi-IN' : lang === 'gu' ? 'gu-IN' : 'en-GB', { month: 'short', day: 'numeric', year: 'numeric' })}`;
       }
-      return 'Custom Range';
+      return t('customRange', lang) || 'Custom Range';
     }
-    return 'All Time';
-  }, [filters.dateRange, filters.startDate, filters.endDate, selectedMonthDate]);
+    return t('allTime', lang) || 'All Time';
+  }, [filters.dateRange, filters.startDate, filters.endDate, selectedMonthDate, lang]);
 
   const getCategory = (id: string | number) => categories?.find(c => String(c.id) === String(id));
   const getAccount = (id: string | number) => accounts?.find(a => String(a.id) === String(id));
@@ -358,11 +360,11 @@ export default function Analytics() {
             <div className="flex items-center space-x-2">
               <Calendar className="w-5 h-5 text-gray-800" strokeWidth={2.5} />
               <h1 className="text-lg font-bold text-gray-900 tracking-tight">
-                {selectedMonthDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                {selectedMonthDate.toLocaleString(lang || 'default', { month: 'long', year: 'numeric' })}
               </h1>
             </div>
           ) : (
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Analytics</h1>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{t('analytics', lang) || 'Analytics'}</h1>
           )}
           
           {/* Right side: arrows and filter */}
@@ -404,9 +406,9 @@ export default function Analytics() {
             <div className="flex items-center justify-between mb-4">
                <div>
                   <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">
-                    {filters.type === 'all' ? 'Net Cashflow' : 
-                     (filters.type === 'expense' ? 'Total Spending' : 
-                     (filters.type === 'income' ? 'Total Earnings' : 'Total Transfers'))}
+                    {filters.type === 'all' ? (t('netCashflow', lang) || 'Net Cashflow') : 
+                     (filters.type === 'expense' ? (t('totalSpending', lang) || 'Total Spending') : 
+                     (filters.type === 'income' ? (t('totalEarnings', lang) || 'Total Earnings') : (t('totalTransfers', lang) || 'Total Transfers')))}
                   </p>
                   <h2 className={cn(
                     "text-2xl font-bold tracking-tight",
@@ -433,7 +435,7 @@ export default function Analytics() {
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wider leading-none mb-1">Income</p>
+                  <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wider leading-none mb-1">{t('income', lang) || 'Income'}</p>
                   <p className="font-bold text-sm text-emerald-500 truncate">{settings?.showSignSymbol !== false ? '+' : ''}{formatCurrency(totalIncome, settings)}</p>
                 </div>
               </div>
@@ -442,7 +444,7 @@ export default function Analytics() {
                   <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wider leading-none mb-1">Expense</p>
+                  <p className="text-[8px] text-gray-400 font-bold uppercase tracking-wider leading-none mb-1">{t('expense', lang) || 'Expense'}</p>
                   <p className="font-bold text-sm text-rose-500 truncate">{settings?.showSignSymbol !== false ? '-' : ''}{formatCurrency(totalExpense, settings)}</p>
                 </div>
               </div>
@@ -456,31 +458,31 @@ export default function Analytics() {
           <div className="flex flex-col space-y-4 mb-8 px-1">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-gray-900 uppercase tracking-tight">
-                Cashflow History
+                {t('cashflowHistory', lang) || 'Cashflow History'}
               </h3>
               <div className="flex bg-gray-50 p-1 rounded-xl">
                  <button 
                   onClick={() => setTrendView('line')}
                   className={cn("px-3 py-1.5 text-[8px] font-bold uppercase rounded-lg transition-all", trendView === 'line' ? "bg-white text-indigo-600 shadow-sm" : "text-gray-400")}
                  >
-                   Lines
+                   {t('lines', lang) || 'Lines'}
                  </button>
                  <button 
                   onClick={() => setTrendView('bar')}
                   className={cn("px-3 py-1.5 text-[8px] font-bold uppercase rounded-lg transition-all", trendView === 'bar' ? "bg-white text-indigo-600 shadow-sm" : "text-gray-400")}
                  >
-                   Bars
+                   {t('bars', lang) || 'Bars'}
                  </button>
               </div>
             </div>
             <div className="flex items-center justify-end space-x-4">
                 <div className="flex items-center space-x-1">
                    <div className="w-2 h-2 rounded-full bg-emerald-400" />
-                   <span className="text-[8px] font-bold text-gray-400 uppercase">In</span>
+                   <span className="text-[8px] font-bold text-gray-400 uppercase">{t('in', lang) || 'In'}</span>
                 </div>
                 <div className="flex items-center space-x-1">
                    <div className="w-2 h-2 rounded-full bg-rose-400" />
-                   <span className="text-[8px] font-bold text-gray-400 uppercase">Out</span>
+                   <span className="text-[8px] font-bold text-gray-400 uppercase">{t('out', lang) || 'Out'}</span>
                 </div>
             </div>
           </div>
@@ -534,7 +536,7 @@ export default function Analytics() {
       {/* Breakdown List */}
       <div className="space-y-4">
         <div className="flex items-center justify-between px-1">
-          <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Detailed Breakdown</h3>
+          <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t('detailedBreakdown', lang) || 'Detailed Breakdown'}</h3>
           <div className="flex bg-gray-100 p-1 rounded-lg">
             <button 
               onClick={() => setCompositionView('pie')}
@@ -556,7 +558,7 @@ export default function Analytics() {
              <div className="relative h-64 w-full">
                 {compositionView === 'pie' && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{filters.type === 'expense' ? 'Spent' : (filters.type === 'income' ? 'Earned' : 'Balance')}</p>
+                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{filters.type === 'expense' ? (t('spent', lang) || 'Spent') : (filters.type === 'income' ? (t('earned', lang) || 'Earned') : (t('balance', lang) || 'Balance'))}</p>
                      <p className={cn(
                        "text-xl font-bold leading-tight", 
                        (filters.type === 'expense' || (filters.type === 'all' && (totalIncome - totalExpense) < 0)) ? "text-rose-500" : "text-emerald-500"
@@ -745,7 +747,7 @@ export default function Analytics() {
 
                 {selectedDetailedCategory.subcategories.length > 0 && (
                   <div className="space-y-4">
-                    <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Subcategories</h3>
+                    <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">{t('subCategories', lang) || 'Subcategories'}</h3>
                     {selectedDetailedCategory.subcategories.map((sub: any, i: number) => (
                       <div key={i} className="flex flex-col space-y-2">
                         <div className="flex items-center justify-between">
@@ -805,15 +807,14 @@ export default function Analytics() {
       {averages && (
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-50 flex flex-col space-y-4">
           <div className="mb-1">
-             <h3 className="text-xl font-bold text-gray-900 tracking-tight">Average</h3>
+             <h3 className="text-xl font-bold text-gray-900 tracking-tight">{t('average', lang) || 'Average'}</h3>
              <p className="text-sm text-gray-500 font-medium mt-0.5">{periodLabel}</p>
           </div>
           
           <div className="space-y-2.5 pt-1">
             {[
-              { label: 'Day', data: averages.daily },
-              { label: 'Week', data: averages.weekly },
-              { label: 'Month', data: averages.monthly }
+              { label: t('day', lang) || 'Day', data: averages.daily },
+              { label: t('week', lang) || 'Week', data: averages.weekly }
             ].map((avg, i) => (
               <div key={i} className="flex items-center justify-between">
                 <span className="text-base text-gray-600 font-medium">{avg.label}</span>
@@ -829,7 +830,7 @@ export default function Analytics() {
 
       {/* Filtered Transactions List */}
       <div className="space-y-4">
-        <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Transactions in this period</h3>
+        <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">{t('transactionsInPeriod', lang) || 'Transactions in this period'}</h3>
         <div className="space-y-3">
           {filteredTransactions.length > 0 ? (
             filteredTransactions.slice(0, limit).map(t => {

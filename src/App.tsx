@@ -11,12 +11,14 @@ import {
   Settings as SettingsIcon,
   Plus as PlusIcon,
   Target as TargetIcon,
-  Loader2
+  Loader2,
+  BookOpen
 } from 'lucide-react';
 import { db, initDefaultCategories, initDefaultSettings, initDefaultAccounts } from './db';
 import { cn } from './lib/utils';
 import PinLock from './components/PinLock';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { t } from './lib/i18n';
 
 import Dashboard from './pages/Dashboard';
 import Transactions from './pages/Transactions';
@@ -28,18 +30,24 @@ import ManageAccounts from './pages/ManageAccounts';
 import ManageCategories from './pages/ManageCategories';
 import ManageSubCategories from './pages/ManageSubCategories';
 
+import CashBook from './pages/CashBook';
+import CashbookCustomerDetail from './pages/CashbookCustomerDetail';
+
 import { Toaster } from 'sonner';
 
 function BottomNav() {
+  const settings = useLiveQuery(() => db.settings.get(1));
+  const lang = settings?.language;
+
   return (
     <nav className="h-16 bg-white border-t border-gray-100 flex items-center justify-around px-2 z-40 pb-safe shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.05)]">
       <NavLink to="/" className={({ isActive }) => cn("flex flex-col items-center justify-center space-y-0.5 flex-1 h-full text-[10px] uppercase font-bold transition-all duration-300", isActive ? "text-indigo-600 scale-105" : "text-gray-400 hover:text-gray-600")}>
         <LayoutDashboard className="w-5 h-5" />
-        <span>Home</span>
+        <span>{t('home', lang)}</span>
       </NavLink>
       <NavLink to="/analytics" className={({ isActive }) => cn("flex flex-col items-center justify-center space-y-0.5 flex-1 h-full text-[10px] uppercase font-bold transition-all duration-300", isActive ? "text-indigo-600 scale-105" : "text-gray-400 hover:text-gray-600")}>
         <PieChartIcon className="w-5 h-5" />
-        <span>Analytics</span>
+        <span>{t('analytics', lang)}</span>
       </NavLink>
       <div className="relative -top-4 flex-shrink-0 px-2">
         <NavLink to="/add" className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-indigo-200 active:scale-90 hover:scale-105 transition-all ring-4 ring-white">
@@ -48,11 +56,11 @@ function BottomNav() {
       </div>
       <NavLink to="/transactions" className={({ isActive }) => cn("flex flex-col items-center justify-center space-y-0.5 flex-1 h-full text-[10px] uppercase font-bold transition-all duration-300", isActive ? "text-indigo-600 scale-105" : "text-gray-400 hover:text-gray-600")}>
         <HistoryIcon className="w-5 h-5" />
-        <span>History</span>
+        <span>{t('transactions', lang)}</span>
       </NavLink>
-      <NavLink to="/settings" className={({ isActive }) => cn("flex flex-col items-center justify-center space-y-0.5 flex-1 h-full text-[10px] uppercase font-bold transition-all duration-300", isActive ? "text-indigo-600 scale-105" : "text-gray-400 hover:text-gray-600")}>
-        <SettingsIcon className="w-5 h-5" />
-        <span>Settings</span>
+      <NavLink to="/cashbook" className={({ isActive }) => cn("flex flex-col items-center justify-center space-y-0.5 flex-1 h-full text-[10px] uppercase font-bold transition-all duration-300", isActive ? "text-indigo-600 scale-105" : "text-gray-400 hover:text-gray-600")}>
+        <BookOpen className="w-5 h-5" />
+        <span>{t('cashbook', lang)}</span>
       </NavLink>
     </nav>
   );
@@ -206,6 +214,8 @@ export default function App() {
                 <Route path="/settings/accounts" element={<PageWrapper><ManageAccounts /></PageWrapper>} />
                 <Route path="/settings/categories" element={<PageWrapper><ManageCategories /></PageWrapper>} />
                 <Route path="/settings/categories/:parentId" element={<PageWrapper><ManageSubCategories /></PageWrapper>} />
+                <Route path="/cashbook" element={<PageWrapper><CashBook /></PageWrapper>} />
+                <Route path="/cashbook/:id" element={<PageWrapper><CashbookCustomerDetail /></PageWrapper>} />
                 <Route path="/add" element={<PageWrapper><AddTransaction /></PageWrapper>} />
                 <Route path="/edit/:id" element={<PageWrapper><AddTransaction /></PageWrapper>} />
               </Routes>

@@ -9,7 +9,14 @@ interface PinLockProps {
   onSuccess: () => void;
 }
 
+import { t } from '../lib/i18n';
+import { db } from '../db';
+import { useLiveQuery } from 'dexie-react-hooks';
+
 export default function PinLock({ correctPin, onSuccess }: PinLockProps) {
+  const settings = useLiveQuery(() => db.settings.get(1));
+  const lang = settings?.language;
+
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
 
@@ -45,8 +52,8 @@ export default function PinLock({ correctPin, onSuccess }: PinLockProps) {
         <div className="w-16 h-16 bg-indigo-50 rounded-3xl flex items-center justify-center text-indigo-600 mx-auto mb-4">
           <Lock className="w-8 h-8" />
         </div>
-        <h2 className="text-xl font-bold text-gray-900">Enter PIN</h2>
-        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">Locked for your safety</p>
+        <h2 className="text-xl font-bold text-gray-900">{t('appLock', lang) || 'Enter PIN'}</h2>
+        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">{t('appLockDesc', lang) || 'Locked for your safety'}</p>
       </motion.div>
 
       <div className="flex space-x-4 mb-16">

@@ -13,6 +13,7 @@ export function formatCurrency(amount: number, settings?: Partial<AppSettings> |
   let showDecimals = true;
   let showSignSymbol = true;
   
+  let lang = 'en';
   if (typeof settings === 'string') {
     currency = settings;
   } else if (settings) {
@@ -20,11 +21,12 @@ export function formatCurrency(amount: number, settings?: Partial<AppSettings> |
     numberFormat = settings.numberFormat || 'in';
     showDecimals = settings.showDecimals !== false;
     showSignSymbol = settings.showSignSymbol !== false;
+    lang = settings.language || 'en';
   }
 
-  let locale = 'en-IN';
-  if (numberFormat === 'us') locale = 'en-US';
-  else if (numberFormat === 'eu') locale = 'de-DE';
+  let locale = lang === 'hi' ? 'hi-IN' : lang === 'gu' ? 'gu-IN' : 'en-IN';
+  if (numberFormat === 'us') locale = lang === 'hi' ? 'hi-US' : lang === 'gu' ? 'gu-US' : 'en-US';
+  else if (numberFormat === 'eu') locale = lang === 'hi' ? 'hi-DE' : lang === 'gu' ? 'gu-DE' : 'de-DE';
 
   return new Intl.NumberFormat(locale, {
     style: 'currency',
@@ -38,19 +40,21 @@ export function formatCurrency(amount: number, settings?: Partial<AppSettings> |
 export function formatNumberOnly(amount: number | string, settings?: Partial<AppSettings> | string | null): string {
   if (amount === '' || amount === null || amount === undefined) return '';
   let numberFormat = 'in';
+  let lang = 'en';
   
   if (typeof settings === 'string') {
     numberFormat = settings; // Just fallback
   } else if (settings) {
     numberFormat = settings.numberFormat || 'in';
+    lang = settings.language || 'en';
   }
 
-  let locale = 'en-IN';
+  let locale = lang === 'hi' ? 'hi-IN' : lang === 'gu' ? 'gu-IN' : 'en-IN';
   let decimalSeparator = '.';
   if (numberFormat === 'us') {
-    locale = 'en-US';
+    locale = lang === 'hi' ? 'hi-US' : lang === 'gu' ? 'gu-US' : 'en-US';
   } else if (numberFormat === 'eu') {
-    locale = 'de-DE';
+    locale = lang === 'hi' ? 'hi-DE' : lang === 'gu' ? 'gu-DE' : 'de-DE';
     decimalSeparator = ',';
   }
 
@@ -94,4 +98,30 @@ export function getCurrencySymbol(settings?: Partial<AppSettings> | string | nul
   const parts = formatter.formatToParts(0);
   const symbolPart = parts.find(part => part.type === 'currency');
   return symbolPart ? symbolPart.value : currency;
+}
+
+export function formatDate(date: Date | string | number, settings?: Partial<AppSettings> | null): string {
+  if (!date) return '';
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return '';
+
+  const format = settings?.dateFormat || 'dd MMM yyyy';
+  const langSetting = settings?.language || 'en';
+  const locale = langSetting === 'hi' ? 'hi-IN' : langSetting === 'gu' ? 'gu-IN' : 'en-GB';
+  
+  const dd = String(d.getDate()).padStart(2, '0');
+  const MM_num = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  
+  switch (format) {
+    case 'MM/dd/yyyy':
+      return `${MM_num}/${dd}/${yyyy}`;
+    case 'dd/MM/yyyy':
+      return `${dd}/${MM_num}/${yyyy}`;
+    case 'yyyy-MM-dd':
+      return `${yyyy}-${MM_num}-${dd}`;
+    case 'dd MMM yyyy':
+    default:
+      return d.toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' });
+  }
 }

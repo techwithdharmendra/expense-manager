@@ -1,5 +1,7 @@
 
 import React from 'react';
+import { db } from '../db';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Filter, 
@@ -10,7 +12,8 @@ import {
   Search,
   ArrowRight
 } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { cn, formatDate } from '../lib/utils';
+import { t } from '../lib/i18n';
 
 export interface FilterState {
   type: 'all' | 'income' | 'expense' | 'transfer';
@@ -43,6 +46,8 @@ export default function FilterSection({
   showTypeFilter = true,
   excludeTransfer = false
 }: FilterSectionProps) {
+  const settings = useLiveQuery(() => db.settings.get(1));
+  const lang = settings?.language;
   const [isOpen, setIsOpen] = React.useState(false);
 
   const updateFilter = (updates: Partial<FilterState>) => {
@@ -78,7 +83,7 @@ export default function FilterSection({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
             <input 
               type="text" 
-              placeholder="Search..."
+              placeholder={t('searchTransactions', lang) || 'Search...'}
               value={filters.searchTerm}
               onChange={e => updateFilter({ searchTerm: e.target.value })}
               className="w-24 sm:w-40 md:w-60 bg-gray-50/50 border border-gray-100/80 rounded-xl py-2 pl-8 pr-3 text-[10px] sm:text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/10 focus:bg-white focus:w-40 sm:focus:w-52 md:focus:w-72 transition-all shadow-sm"
@@ -93,7 +98,7 @@ export default function FilterSection({
           )}
         >
           <Filter className="w-3.5 h-3.5" />
-          <span className="text-[9px] font-bold uppercase tracking-widest hidden md:inline">Filters</span>
+          <span className="text-[9px] font-bold uppercase tracking-widest hidden md:inline">{t('filters', lang) || 'Filters'}</span>
           {activeFilterCount > 0 && (
             <span className={cn(
               "absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[7px] font-bold border border-white",
@@ -115,7 +120,7 @@ export default function FilterSection({
           >
             <div className="bg-white p-5 border border-gray-100 space-y-5">
               <div className="flex items-center justify-between px-1">
-                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Adjust Filters</h3>
+                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t('filters', lang) || 'Adjust Filters'}</h3>
                 <div className="flex items-center space-x-3">
                   {activeFilterCount > 0 && (
                     <button 
@@ -130,7 +135,7 @@ export default function FilterSection({
                       })}
                       className="text-[9px] font-bold text-indigo-500 uppercase tracking-widest hover:text-indigo-600 transition-colors"
                     >
-                      Reset
+                      {t('clearAll', lang) || 'Reset'}
                     </button>
                   )}
                   <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-gray-600">
@@ -141,7 +146,7 @@ export default function FilterSection({
 
               {showTypeFilter && (
                 <div className="space-y-2">
-                  <label className="text-[9px] font-bold text-gray-400 uppercase ml-1">Transaction Type</label>
+                  <label className="text-[9px] font-bold text-gray-400 uppercase ml-1">{t('allTypes', lang) || 'Transaction Type'}</label>
                   <div className="flex p-1 bg-gray-50 rounded-xl">
                     {(excludeTransfer ? ['all', 'income', 'expense'] : ['all', 'income', 'expense', 'transfer'] as const).map(f => (
                       <button
@@ -152,7 +157,12 @@ export default function FilterSection({
                           filters.type === f ? "bg-white text-indigo-600 shadow-sm" : "text-gray-400"
                         )}
                       >
-                        {f}
+                        {
+                          f === 'all' ? (t('allTypes', lang) || 'All') 
+                          : f === 'income' ? (t('income', lang) || 'Income')
+                          : f === 'expense' ? (t('expense', lang) || 'Expense')
+                          : (t('transfer', lang) || 'Transfer')
+                        }
                       </button>
                     ))}
                   </div>
@@ -161,7 +171,7 @@ export default function FilterSection({
 
               <div className="space-y-5">
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold text-gray-400 uppercase ml-1 flex items-center"><Wallet className="w-3 h-3 mr-1" /> Wallet</label>
+                  <label className="text-[9px] font-bold text-gray-400 uppercase ml-1 flex items-center"><Wallet className="w-3 h-3 mr-1" /> {t('accounts', lang) || 'Wallet'}</label>
                   <div className="flex flex-wrap gap-1.5">
                     <button
                       onClick={() => updateFilter({ accountId: [] })}
@@ -183,7 +193,7 @@ export default function FilterSection({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold text-gray-400 uppercase ml-1 flex items-center"><Tag className="w-3 h-3 mr-1" /> Category</label>
+                  <label className="text-[9px] font-bold text-gray-400 uppercase ml-1 flex items-center"><Tag className="w-3 h-3 mr-1" /> {t('category', lang) || 'Category'}</label>
                   <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto custom-scrollbar pr-1">
                     <button
                       onClick={() => updateFilter({ categoryId: [] })}
@@ -205,7 +215,7 @@ export default function FilterSection({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold text-gray-400 uppercase ml-1">Date Period</label>
+                  <label className="text-[9px] font-bold text-gray-400 uppercase ml-1">{t('dateRange', lang) || 'Date Period'}</label>
                   <div className="relative">
                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
                     <select 
@@ -239,7 +249,7 @@ export default function FilterSection({
                         />
                         <div className="w-full px-3 py-2 bg-gray-50 rounded-xl text-[10px] font-bold text-gray-700">
                           {filters.startDate 
-                            ? new Date(filters.startDate + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                            ? formatDate(filters.startDate + 'T00:00:00', settings)
                             : 'Select date'}
                         </div>
                       </div>
@@ -255,7 +265,7 @@ export default function FilterSection({
                         />
                         <div className="w-full px-3 py-2 bg-gray-50 rounded-xl text-[10px] font-bold text-gray-700">
                           {filters.endDate 
-                            ? new Date(filters.endDate + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                            ? formatDate(filters.endDate + 'T00:00:00', settings)
                             : 'Select date'}
                         </div>
                       </div>

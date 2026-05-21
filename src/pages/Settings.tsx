@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { auditBalances } from '../lib/dbUtils';
 import { filterStore } from '../lib/filterStore';
+import { t } from '../lib/i18n';
 import { 
   Download, 
   Upload,
@@ -18,7 +19,9 @@ import {
   Wallet,
   Tag,
   RefreshCw,
-  Database
+  Database,
+  Bell,
+  Globe
 } from 'lucide-react';
 import { cn, formatCurrency } from '../lib/utils';
 import { motion } from 'motion/react';
@@ -32,6 +35,7 @@ import { Share } from '@capacitor/share';
 
 export default function Settings() {
   const settings = useLiveQuery(() => db.settings.get(1));
+  const lang = settings?.language;
   const [confirmClear, setConfirmClear] = useState(false);
   const [importPending, setImportPending] = useState<any>(null);
 
@@ -311,7 +315,7 @@ export default function Settings() {
       />
 
       <div className="flex items-center justify-between px-1 mb-4">
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Settings</h1>
+        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{t('settings', lang)}</h1>
         <button 
           onClick={toggleTheme} 
           className="w-9 h-9 rounded-2xl bg-white shadow-sm flex items-center justify-center text-gray-400 hover:bg-gray-50 transition-colors border border-gray-100" 
@@ -323,7 +327,7 @@ export default function Settings() {
 
       {/* Management */}
       <section className="space-y-3">
-        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Structure</h3>
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">{t('manageCategories', lang) || 'Structure'}</h3>
         <div className="bg-white rounded-2xl p-1 shadow-sm border border-gray-50 flex flex-col">
           <Link to="/settings/accounts" className="flex items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50 transition-colors">
             <div className="flex items-center space-x-3">
@@ -331,7 +335,7 @@ export default function Settings() {
                 <Wallet className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-sm font-bold text-gray-700">Manage Accounts</p>
+                <p className="text-sm font-bold text-gray-700">{t('accounts', lang) || 'Manage Accounts'}</p>
                 <p className="text-[10px] text-gray-400 font-medium tracking-tight">Add cash, bank or digital wallets</p>
               </div>
             </div>
@@ -344,8 +348,8 @@ export default function Settings() {
                 <Tag className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-sm font-bold text-gray-700">Categories & Sub-cats</p>
-                <p className="text-[10px] text-gray-400 font-medium tracking-tight">Customize labels for your spends</p>
+                <p className="text-sm font-bold text-gray-700">{t('manageCategories', lang) || 'Categories & Sub-cats'}</p>
+                <p className="text-[10px] text-gray-400 font-medium tracking-tight">{t('manageCategoriesDesc', lang) || 'Customize labels for your spends'}</p>
               </div>
             </div>
             <ChevronRight className="w-5 h-5 text-gray-300" />
@@ -355,29 +359,55 @@ export default function Settings() {
 
       {/* Account Preferences */}
       <section className="space-y-3">
-        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Account Preferences</h3>
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">{t('accountPreferences', lang) || 'Account Preferences'}</h3>
         <div className="bg-white rounded-2xl p-1 shadow-sm border border-gray-50 flex flex-col">
+          <div className="flex items-center justify-between p-4 border-b border-gray-50">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                <Globe className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-gray-700">{t('language', lang)}</p>
+                <p className="text-[10px] text-gray-400 font-medium">{t('selectLanguage', lang)}</p>
+              </div>
+            </div>
+            <select 
+              value={settings?.language || 'en'}
+              onChange={e => {
+                db.settings.update(1, { language: e.target.value as any });
+              }}
+              className="text-sm font-bold text-indigo-600 focus:outline-none bg-transparent whitespace-nowrap px-1 text-right"
+            >
+              <option value="en">{t('english', lang)}</option>
+              <option value="hi">{t('hindi', lang)}</option>
+              <option value="gu">{t('gujarati', lang)}</option>
+            </select>
+          </div>
+
           <div className="flex items-center justify-between p-4 border-b border-gray-50">
             <div className="flex items-center space-x-3">
               <div className={cn("w-10 h-10 rounded-2xl flex items-center justify-center transition-colors", settings?.hideBalance ? "bg-red-50 text-red-600" : "bg-indigo-50 text-indigo-600")}>
                 {settings?.hideBalance ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </div>
               <div>
-                <p className="text-sm font-bold text-gray-700">Hide Balance</p>
-                <p className="text-[10px] text-gray-400 font-medium">Conceal total balance on dashboard</p>
+                <p className="text-sm font-bold text-gray-700">{t('hideBalanceSetting', lang) || 'Hide Balance'}</p>
+                <p className="text-[10px] text-gray-400 font-medium">{t('hideBalanceDesc', lang) || 'Conceal total balance on dashboard'}</p>
               </div>
             </div>
             <button 
               onClick={toggleHideBalance}
               className={cn(
                 "w-12 h-6 rounded-full transition-colors relative",
-                settings?.hideBalance ? "bg-indigo-600" : "bg-gray-200"
+                settings?.hideBalance ? "bg-indigo-600" : "bg-gray-300"
               )}
             >
-              <div className={cn(
-                "absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-sm",
-                settings?.hideBalance ? "left-7" : "left-1"
-              )} />
+              <div 
+                className={cn(
+                  "absolute top-1 w-4 h-4 rounded-full transition-all shadow-sm z-10",
+                  settings?.hideBalance ? "left-7" : "left-1"
+                )} 
+                style={{ backgroundColor: '#ffffff' }}
+              />
             </button>
           </div>
 
@@ -387,8 +417,8 @@ export default function Settings() {
                 <Coins className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-sm font-bold text-gray-700">Currency</p>
-                <p className="text-[10px] text-gray-400 font-medium">Primary money formatting</p>
+                <p className="text-sm font-bold text-gray-700">{t('currencySetting', lang) || 'Currency'}</p>
+                <p className="text-[10px] text-gray-400 font-medium">{t('currencySettingDesc', lang) || 'Primary money formatting'}</p>
               </div>
             </div>
             <select 
@@ -410,8 +440,8 @@ export default function Settings() {
                 $
               </div>
               <div>
-                <p className="text-sm font-bold text-gray-700">Number Format</p>
-                <p className="text-[10px] text-gray-400 font-medium">Comma & dot style</p>
+                <p className="text-sm font-bold text-gray-700">{t('numberFormatSetting', lang) || 'Number Format'}</p>
+                <p className="text-[10px] text-gray-400 font-medium">{t('numberFormatDesc', lang) || 'Comma & dot style'}</p>
               </div>
             </div>
             <select 
@@ -427,25 +457,50 @@ export default function Settings() {
 
           <div className="flex items-center justify-between p-4 border-b border-gray-50">
             <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center font-bold font-mono">
+                25
+              </div>
+              <div>
+                <p className="text-sm font-bold text-gray-700">{t('dateFormatSetting', lang) || 'Date Format'}</p>
+                <p className="text-[10px] text-gray-400 font-medium">{t('dateFormatDesc', lang) || 'Global date pattern'}</p>
+              </div>
+            </div>
+            <select 
+              value={settings?.dateFormat || 'dd MMM yyyy'}
+              onChange={e => db.settings.update(1, { dateFormat: e.target.value as any })}
+              className="text-sm font-bold text-indigo-600 focus:outline-none bg-transparent whitespace-nowrap px-1"
+            >
+              <option value="dd MMM yyyy">25 May 2026</option>
+              <option value="dd/MM/yyyy">25/05/2026</option>
+              <option value="MM/dd/yyyy">05/25/2026</option>
+              <option value="yyyy-MM-dd">2026-05-25</option>
+            </select>
+          </div>
+
+          <div className="flex items-center justify-between p-4 border-b border-gray-50">
+            <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-sm font-bold font-mono">
                 .00
               </div>
               <div>
-                <p className="text-sm font-bold text-gray-700">Show Decimals</p>
-                <p className="text-[10px] text-gray-400 font-medium">Show points after zero</p>
+                <p className="text-sm font-bold text-gray-700">{t('showDecimals', lang) || 'Show Decimals'}</p>
+                <p className="text-[10px] text-gray-400 font-medium">{t('showDecimalsDesc', lang) || 'Show points after zero'}</p>
               </div>
             </div>
             <button 
               onClick={() => db.settings.update(1, { showDecimals: settings?.showDecimals === false ? true : false })}
               className={cn(
                 "w-12 h-6 rounded-full transition-colors relative shrink-0",
-                settings?.showDecimals !== false ? "bg-indigo-600" : "bg-gray-200"
+                settings?.showDecimals !== false ? "bg-indigo-600" : "bg-gray-300"
               )}
             >
-              <div className={cn(
-                "absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-sm",
-                settings?.showDecimals !== false ? "left-7" : "left-1"
-              )} />
+              <div 
+                className={cn(
+                  "absolute top-1 w-4 h-4 rounded-full transition-all shadow-sm z-10",
+                  settings?.showDecimals !== false ? "left-7" : "left-1"
+                )} 
+                style={{ backgroundColor: '#ffffff' }}
+              />
             </button>
           </div>
 
@@ -455,21 +510,24 @@ export default function Settings() {
                 ±
               </div>
               <div>
-                <p className="text-sm font-bold text-gray-700">Show Sign (+ / -)</p>
-                <p className="text-[10px] text-gray-400 font-medium">Income +$ / Expense -$</p>
+                <p className="text-sm font-bold text-gray-700">{t('showSign', lang) || 'Show Sign (+ / -)'}</p>
+                <p className="text-[10px] text-gray-400 font-medium">{t('showSignDesc', lang) || 'Income +$ / Expense -$'}</p>
               </div>
             </div>
             <button 
               onClick={() => db.settings.update(1, { showSignSymbol: settings?.showSignSymbol === false ? true : false })}
               className={cn(
                 "w-12 h-6 rounded-full transition-colors relative shrink-0",
-                settings?.showSignSymbol !== false ? "bg-indigo-600" : "bg-gray-200"
+                settings?.showSignSymbol !== false ? "bg-indigo-600" : "bg-gray-300"
               )}
             >
-              <div className={cn(
-                "absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-sm",
-                settings?.showSignSymbol !== false ? "left-7" : "left-1"
-              )} />
+              <div 
+                className={cn(
+                  "absolute top-1 w-4 h-4 rounded-full transition-all shadow-sm z-10",
+                  settings?.showSignSymbol !== false ? "left-7" : "left-1"
+                )} 
+                style={{ backgroundColor: '#ffffff' }}
+              />
             </button>
           </div>
 
@@ -479,8 +537,8 @@ export default function Settings() {
                 M
               </div>
               <div>
-                <p className="text-sm font-bold text-gray-700">Month Start Date</p>
-                <p className="text-[10px] text-gray-400 font-medium">Day a new month cycle begins</p>
+                <p className="text-sm font-bold text-gray-700">{t('monthStartDate', lang) || 'Month Start Date'}</p>
+                <p className="text-[10px] text-gray-400 font-medium">{t('monthStartDateDesc', lang) || 'Day a new month cycle begins'}</p>
               </div>
             </div>
             <select 
@@ -493,12 +551,63 @@ export default function Settings() {
                   filterStore.setState({ ...currentFilters, dateRange: 'month' });
                 }
               }}
-              className="text-sm font-bold text-indigo-600 focus:outline-none bg-transparent text-right"
+              className="text-sm font-bold text-indigo-600 focus:outline-none bg-transparent text-right pr-1"
             >
               {Array.from({length: 28}, (_, i) => i + 1).map(day => (
                  <option key={day} value={day}>{day}</option>
               ))}
             </select>
+          </div>
+          
+          <div className="flex items-center justify-between p-4 border-t border-gray-50">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                <Bell className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-gray-700">{t('cashbookReminder', lang) || 'Cashbook Reminder'}</p>
+                <p className="text-[10px] text-gray-400 font-medium">{t('cashbookReminderDesc', lang) || 'Remind before due date'}</p>
+              </div>
+            </div>
+            <select 
+              value={settings?.cashbookReminderDays || 1}
+              onChange={e => {
+                db.settings.update(1, { cashbookReminderDays: parseInt(e.target.value) });
+              }}
+              className="text-sm font-bold text-indigo-600 focus:outline-none bg-transparent text-right pr-1"
+            >
+              <option value={1}>1 Day Before</option>
+              <option value={2}>2 Days Before</option>
+              <option value={3}>3 Days Before</option>
+              <option value={7}>1 Week Before</option>
+              <option value={0}>On Date Only</option>
+            </select>
+          </div>
+          
+          <div className="flex items-center justify-between p-4 border-t border-gray-50">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <RefreshCw className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-gray-700">{t('syncCashbook', lang) || 'Sync with Expenses'}</p>
+                <p className="text-[10px] text-gray-400 font-medium">{t('syncCashbookDesc', lang) || 'Add Cashbook entries to dashboard'}</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => db.settings.update(1, { syncCashbookWithExpenses: !settings?.syncCashbookWithExpenses })}
+              className={cn(
+                "w-12 h-6 rounded-full transition-colors relative shrink-0",
+                settings?.syncCashbookWithExpenses ? "bg-indigo-600" : "bg-gray-300"
+              )}
+            >
+              <div 
+                className={cn(
+                  "absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-sm z-10",
+                  settings?.syncCashbookWithExpenses ? "left-7" : "left-1"
+                )} 
+              />
+            </button>
           </div>
         </div>
       </section>
@@ -517,8 +626,8 @@ export default function Settings() {
                 <RefreshCw className={cn("w-5 h-5", isAuditing && "animate-spin")} />
               </div>
               <div>
-                <p className="text-sm font-bold text-gray-700 text-left">Repair Balances</p>
-                <p className="text-[10px] text-gray-400 font-medium">Recalculate account totals from history</p>
+                <p className="text-sm font-bold text-gray-700 text-left">{t('repairBalances', lang) || 'Repair Balances'}</p>
+                <p className="text-[10px] text-gray-400 font-medium">{t('repairBalancesDesc', lang) || 'Recalculate account totals from history'}</p>
               </div>
             </div>
             {isAuditing && <span className="text-[10px] font-bold text-amber-500 uppercase">Wait...</span>}
@@ -530,8 +639,8 @@ export default function Settings() {
                 <Database className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-sm font-bold text-gray-700 text-left">Cache Mode</p>
-                <p className="text-[10px] text-gray-400 font-medium">Performance optimized for large history</p>
+                <p className="text-sm font-bold text-gray-700 text-left">{t('cacheMode', lang) || 'Cache Mode'}</p>
+                <p className="text-[10px] text-gray-400 font-medium">{t('cacheModeDesc', lang) || 'Performance optimized for large history'}</p>
               </div>
             </div>
             <span className="text-[10px] font-bold text-emerald-500 uppercase bg-emerald-50 px-2 py-1 rounded-lg">Enabled</span>
@@ -541,7 +650,7 @@ export default function Settings() {
 
       {/* Data Management backup */}
       <section className="space-y-3">
-        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Data & Backup</h3>
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">{t('dataManagement', lang) || 'Data & Backup'}</h3>
         <div className="bg-white rounded-2xl p-1 shadow-sm border border-gray-50 flex flex-col">
           <button onClick={exportCSV} className="flex w-full items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50">
             <div className="flex items-center space-x-3">
@@ -549,8 +658,8 @@ export default function Settings() {
                 <FileSpreadsheet className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-sm font-bold text-gray-700 text-left">Export to CSV</p>
-                <p className="text-[10px] text-gray-400 font-medium">Open your transactions in Excel</p>
+                <p className="text-sm font-bold text-gray-700 text-left">{t('exportCSV', lang) || 'Export to CSV'}</p>
+                <p className="text-[10px] text-gray-400 font-medium">{t('exportCSVDesc', lang) || 'Open your transactions in Excel'}</p>
               </div>
             </div>
           </button>
@@ -561,8 +670,8 @@ export default function Settings() {
                 <Download className="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <p className="text-sm font-bold text-gray-700 text-left">Backup Data (JSON)</p>
-                <p className="text-[10px] text-gray-400 font-medium">Create a restorable backup file</p>
+                <p className="text-sm font-bold text-gray-700 text-left">{t('exportBackup', lang) || 'Backup Data (JSON)'}</p>
+                <p className="text-[10px] text-gray-400 font-medium">{t('exportBackupDesc', lang) || 'Create a restorable backup file'}</p>
               </div>
             </div>
           </button>
@@ -573,8 +682,8 @@ export default function Settings() {
                 <Upload className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-sm font-bold text-gray-700 text-left">Restore Backup</p>
-                <p className="text-[10px] text-gray-400 font-medium">Upload previously exported JSON</p>
+                <p className="text-sm font-bold text-gray-700 text-left">{t('importBackup', lang) || 'Restore Backup'}</p>
+                <p className="text-[10px] text-gray-400 font-medium">{t('importBackupDesc', lang) || 'Upload previously exported JSON'}</p>
               </div>
             </div>
             <input type="file" accept=".json" onChange={importData} className="hidden" />
@@ -586,7 +695,7 @@ export default function Settings() {
                 <Trash2 className="w-5 h-5" />
               </div>
               <div className="text-left">
-                <p className="text-sm font-bold text-red-500">Clear All Data</p>
+                <p className="text-sm font-bold text-red-500">{t('eraseAllData', lang) || 'Clear All Data'}</p>
               </div>
             </div>
           </button>
@@ -594,7 +703,7 @@ export default function Settings() {
       </section>
 
       <div className="text-center pb-8 opacity-30">
-         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500 italic">ExpenseFlow v1.0.0 (Alpha)</p>
+         <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500 italic">ExpenseFlow {t('version', lang) || 'v1.0.0'} (Alpha)</p>
          <p className="text-[8px] text-gray-400 mt-1 uppercase tracking-widest font-medium">Brought to you by Gemini Build</p>
       </div>
     </div>

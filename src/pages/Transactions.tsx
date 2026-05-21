@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
-import { formatCurrency, cn } from '../lib/utils';
+import { formatCurrency, cn, formatDate } from '../lib/utils';
 import { getMonthCycleStartEnd, isSameMonthCycle, formatYMD } from '../lib/dateUtils';
 import { 
   Search, 
@@ -27,6 +27,7 @@ import { useNavigate } from 'react-router-dom';
 import TransactionItem from '../components/TransactionItem';
 import FilterSection, { FilterState } from '../components/FilterSection';
 import { filterStore } from '../lib/filterStore';
+import { t } from '../lib/i18n';
 
 export default function Transactions() {
   const navigate = useNavigate();
@@ -34,6 +35,7 @@ export default function Transactions() {
   const [selectedMonthDate, setSelectedMonthDate] = useState(() => new Date());
 
   const settings = useLiveQuery(() => db.settings.get(1));
+  const lang = settings?.language;
   const startDay = settings?.monthStartDate || 1;
 
   const handlePrevMonth = () => {
@@ -198,8 +200,8 @@ export default function Transactions() {
     const groups: { date: string; items: Transaction[] }[] = [];
     filteredTransactions.forEach(t => {
       const dateObj = new Date(t.date);
-      // Format: dd MMM yyyy
-      const dateStr = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      // Use user-defined format for grouping header
+      const dateStr = formatDate(dateObj, settings);
       
       const lastGroup = groups[groups.length - 1];
       if (lastGroup && lastGroup.date === dateStr) {
@@ -230,11 +232,11 @@ export default function Transactions() {
             <div className="flex items-center space-x-2">
               <Calendar className="w-5 h-5 text-gray-800" strokeWidth={2.5} />
               <h1 className="text-lg font-bold text-gray-900 tracking-tight">
-                {selectedMonthDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                {selectedMonthDate.toLocaleString(lang || 'default', { month: 'long', year: 'numeric' })}
               </h1>
             </div>
           ) : (
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Transactions</h1>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{t('transactions', lang)}</h1>
           )}
           
           {/* Right side: arrows and filter */}
@@ -298,7 +300,7 @@ export default function Transactions() {
               <div className="flex items-center justify-between px-1 py-1 border-b border-gray-100 pb-2">
                 <div className="flex flex-col">
                   <h3 className="text-[13px] font-bold text-gray-800 tracking-tight">{group.date}</h3>
-                  <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider mt-0.5">{new Date(group.items[0].date).toLocaleDateString('en-US', { weekday: 'long' })}</span>
+                  <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider mt-0.5">{new Date(group.items[0].date).toLocaleDateString(lang === 'hi' ? 'hi-IN' : lang === 'gu' ? 'gu-IN' : 'en-GB', { weekday: 'long' })}</span>
                 </div>
                 <div className={cn("flex items-center space-x-0.5 font-bold text-base tracking-tight", dayBalance < 0 ? "text-rose-500" : "text-emerald-500")}>
                   <Sigma className="w-4 h-4" />
@@ -334,8 +336,8 @@ export default function Transactions() {
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300">
                <HistoryIcon className="w-8 h-8" />
             </div>
-            <p className="text-gray-500 font-medium tracking-tight">No transactions found</p>
-            <p className="text-xs text-gray-400 mt-1">Try adjusting your filters or search terms</p>
+            <p className="text-gray-500 font-medium tracking-tight">{t('noTransactionsMain', lang)}</p>
+            <p className="text-xs text-gray-400 mt-1">{t('noTransactionsSub', lang)}</p>
           </div>
         )}
 

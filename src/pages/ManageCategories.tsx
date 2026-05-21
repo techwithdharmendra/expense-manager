@@ -11,9 +11,12 @@ import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea
 
 import { toast } from 'sonner';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { t } from '../lib/i18n';
 
 export default function ManageCategories() {
   const navigate = useNavigate();
+  const settings = useLiveQuery(() => db.settings.get(1));
+  const lang = settings?.language;
   const [activeType, setActiveType] = useState<TransactionType>('expense');
   
   const categoriesLive = useLiveQuery(
@@ -150,7 +153,7 @@ export default function ManageCategories() {
           <button onClick={() => navigate(-1)} className="p-2.5 bg-white shadow-sm border border-gray-100 rounded-2xl hover:bg-gray-50 transition-all">
             <ArrowLeft className="w-5 h-5 text-gray-700" />
           </button>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Categories</h1>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{t('category', lang) || 'Categories'}</h1>
         </div>
         <button 
           onClick={() => setIsAdding(true)}
@@ -166,13 +169,13 @@ export default function ManageCategories() {
             onClick={() => setActiveType('expense')}
             className={cn("flex-1 py-2.5 text-sm font-bold rounded-xl transition-all", activeType === 'expense' ? "bg-white text-indigo-600 shadow-sm" : "text-gray-500")}
           >
-            Expenses
+            {t('expense', lang) || 'Expenses'}
           </button>
           <button 
             onClick={() => setActiveType('income')}
             className={cn("flex-1 py-2.5 text-sm font-bold rounded-xl transition-all", activeType === 'income' ? "bg-white text-emerald-600 shadow-sm" : "text-gray-500")}
           >
-            Income
+            {t('income', lang) || 'Income'}
           </button>
         </div>
       </div>

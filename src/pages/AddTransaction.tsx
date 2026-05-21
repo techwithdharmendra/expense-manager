@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { addTransaction, updateTransaction, deleteTransaction } from '../lib/dbUtils';
 import { TransactionType, Transaction } from '../types';
-import { cn, getCurrencySymbol, formatNumberOnly } from '../lib/utils';
+import { cn, getCurrencySymbol, formatNumberOnly, formatDate } from '../lib/utils';
 import { saveFile, getFileUri, getRawFileUri, deleteFile } from '../lib/fileStorage';
 import { 
   ArrowLeft, 
@@ -26,6 +26,8 @@ import { Capacitor } from '@capacitor/core';
 import { Share } from '@capacitor/share';
 import { toast } from 'sonner';
 
+import { t } from '../lib/i18n';
+
 export default function AddTransaction() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -34,6 +36,7 @@ export default function AddTransaction() {
   const categoriesLive = useLiveQuery(() => db.categories.toArray());
   const accountsLive = useLiveQuery(() => db.accounts.toArray());
   const settings = useLiveQuery(() => db.settings.get(1));
+  const lang = settings?.language;
 
   const categories = React.useMemo(() => {
     return categoriesLive ? [...categoriesLive].sort((a,b) => (a.order || 0) - (b.order || 0)) : undefined;
@@ -271,7 +274,7 @@ export default function AddTransaction() {
       categoryId: type === 'transfer' ? 0 : Number(categoryId),
       accountId: Number(accountId),
       ...(type === 'transfer' && { toAccountId: Number(toAccountId) }),
-      date: new Date(date),
+      date: new Date(date + 'T00:00:00'),
       note,
       attachment: finalAttachment
     };
@@ -309,7 +312,7 @@ export default function AddTransaction() {
         <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-gray-100 transition-colors">
           <ArrowLeft className="w-6 h-6 text-gray-700" />
         </button>
-        <h1 className="text-xl font-bold text-gray-900">{id ? 'Edit' : 'Add'} Transaction</h1>
+        <h1 className="text-xl font-bold text-gray-900">{id ? (t('editTransaction', lang) || 'Edit Transaction') : (t('addTransaction', lang) || 'Add Transaction')}</h1>
         <div className="w-10"></div>
       </div>
 
@@ -319,21 +322,21 @@ export default function AddTransaction() {
           onClick={() => setType('expense')}
           className={cn("flex-1 px-4 py-2 text-sm font-bold rounded-xl transition-all whitespace-nowrap", type === 'expense' ? "bg-white text-indigo-600 shadow-sm" : "text-gray-500")}
         >
-          Expense
+          {t('expense', lang) || 'Expense'}
         </button>
         <button 
           type="button"
           onClick={() => setType('income')}
           className={cn("flex-1 px-4 py-2 text-sm font-bold rounded-xl transition-all whitespace-nowrap", type === 'income' ? "bg-white text-emerald-600 shadow-sm" : "text-gray-500")}
         >
-          Income
+          {t('income', lang) || 'Income'}
         </button>
         <button 
           type="button"
           onClick={() => setType('transfer')}
           className={cn("flex-1 px-4 py-2 text-sm font-bold rounded-xl transition-all whitespace-nowrap", type === 'transfer' ? "bg-white text-blue-600 shadow-sm" : "text-gray-500")}
         >
-          Transfer
+          {t('transfer', lang) || 'Transfer'}
         </button>
       </div>
 
@@ -346,10 +349,10 @@ export default function AddTransaction() {
                 <Tag className="w-6 h-6" />
               </div>
               <div className="flex-1 space-y-1">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">What for?</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">{t('titleField', lang) || 'What for?'}</label>
                 <input 
                   type="text" 
-                  placeholder="e.g. Starbucks, Rent, Salary" 
+                  placeholder={t('titlePlaceholder', lang) || "e.g. Starbucks, Rent, Salary"} 
                   value={title}
                   onChange={e => setTitle(e.target.value)}
                   className="w-full text-base font-bold focus:outline-none placeholder:text-gray-200 bg-transparent"
@@ -369,7 +372,7 @@ export default function AddTransaction() {
                 <span className="text-xl font-black">{getCurrencySymbol(settings)}</span>
               </div>
               <div className="flex-1 space-y-1">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Amount</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">{t('amount', lang) || 'Amount'}</label>
                 <input 
                   autoFocus
                   type="text" 
@@ -394,10 +397,10 @@ export default function AddTransaction() {
                   <Calendar className="w-5 h-5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block ml-0.5">Date</label>
+                  <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block ml-0.5">{t('date', lang) || 'Date'}</label>
                   <div className="relative">
                     <p className="text-xs font-bold text-gray-900 absolute inset-0 flex items-center pointer-events-none">
-                      {date ? format(parseISO(date), 'dd MMM yyyy') : 'Select Date'}
+                      {date ? formatDate(new Date(date + 'T00:00:00'), settings) : (t('selectDate', lang) || 'Select Date')}
                     </p>
                     <input 
                       type="date" 
@@ -415,7 +418,7 @@ export default function AddTransaction() {
                   <WalletIcon className="w-5 h-5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block ml-0.5">{type === 'transfer' ? 'From' : 'Account'}</label>
+                  <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block ml-0.5">{type === 'transfer' ? (t('from', lang) || 'From') : (t('account', lang) || 'Account')}</label>
                   <select 
                     value={accountId}
                     onChange={e => setAccountId(e.target.value)}
@@ -438,7 +441,7 @@ export default function AddTransaction() {
                     <WalletIcon className="w-5 h-5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block ml-0.5">To Account</label>
+                    <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block ml-0.5">{t('toAccount', lang) || 'To Account'}</label>
                     <select 
                       value={toAccountId}
                       onChange={e => setToAccountId(e.target.value)}
@@ -623,7 +626,7 @@ export default function AddTransaction() {
             className="w-full bg-indigo-600 text-white py-3.5 rounded-2xl font-bold shadow-xl shadow-indigo-100 active:scale-[0.98] transition-transform flex items-center justify-center space-x-2"
           >
             <Check className="w-5 h-5" />
-            <span>Save Transaction</span>
+            <span>{id ? (t('updateTransaction', lang) || 'Update Transaction') : (t('saveTransaction', lang) || 'Save Transaction')}</span>
           </button>
           
           {id && (
@@ -633,7 +636,7 @@ export default function AddTransaction() {
               className="w-full bg-rose-50 text-rose-500 py-3.5 rounded-2xl font-bold active:scale-[0.98] transition-transform flex items-center justify-center space-x-2 border border-rose-100/50"
             >
               <X className="w-5 h-5" />
-              <span>Delete Transaction</span>
+              <span>{t('delete', lang) || 'Delete Transaction'}</span>
             </button>
           )}
         </div>

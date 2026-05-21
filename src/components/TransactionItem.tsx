@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Wallet, Paperclip } from 'lucide-react';
 import { Transaction, Category, Account } from '../types';
-import { formatCurrency, cn } from '../lib/utils';
+import { formatCurrency, cn, formatDate } from '../lib/utils';
 import { getIconByName } from '../lib/icons';
 
 interface TransactionItemProps {
@@ -60,7 +60,7 @@ export default function TransactionItem({
               {transaction.type === 'transfer' 
                  ? `Transfer` 
                  : (parentCategory ? `${parentCategory.name} • ${category?.name}` : category?.name)}
-              {showDate && ` • ${new Date(transaction.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`}
+              {showDate && ` • ${formatDate(transaction.date, settings)}`}
             </p>
             {transaction.note && (
               <p className="text-[10px] text-gray-500 truncate leading-tight italic">

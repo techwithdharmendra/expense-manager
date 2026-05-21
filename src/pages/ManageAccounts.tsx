@@ -11,11 +11,13 @@ import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea
 
 import { toast } from 'sonner';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { t } from '../lib/i18n';
 
 export default function ManageAccounts() {
   const navigate = useNavigate();
   const accountsLive = useLiveQuery(() => db.accounts.toArray());
   const settings = useLiveQuery(() => db.settings.get(1));
+  const lang = settings?.language;
 
   const [accounts, setAccounts] = useState<Account[]>([]);
 
@@ -156,7 +158,7 @@ export default function ManageAccounts() {
           <button onClick={() => navigate(-1)} className="p-2.5 bg-white shadow-sm border border-gray-100 rounded-2xl hover:bg-gray-50 transition-all">
             <ArrowLeft className="w-5 h-5 text-gray-700" />
           </button>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Wallets</h1>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{t('accounts', lang) || 'Wallets'}</h1>
         </div>
         <button 
           onClick={() => setIsAdding(true)}
