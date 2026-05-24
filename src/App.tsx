@@ -41,7 +41,7 @@ function BottomNav() {
   const lang = settings?.language;
 
   return (
-    <nav className="h-16 bg-white border-t border-gray-100 flex items-center justify-around px-2 z-40 pb-safe shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.05)]">
+    <nav className="h-16 bg-white border-t border-gray-100 flex items-center justify-around px-2 z-40 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.05)]">
       <NavLink to="/" className={({ isActive }) => cn("flex flex-col items-center justify-center space-y-0.5 flex-1 h-full text-[10px] uppercase font-bold transition-all duration-300", isActive ? "text-indigo-600 scale-105" : "text-gray-400 hover:text-gray-600")}>
         <LayoutDashboard className="w-5 h-5" />
         <span>{t('home', lang)}</span>
