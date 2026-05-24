@@ -172,6 +172,12 @@ export const translations = {
     week: 'Week',
     earned: 'Earned',
     balance: 'Balance',
+    dashboardLayout: 'Dashboard Layout',
+    categoryOverview: 'Category Overview',
+    categoryOverviewDesc: 'Show expense/income donut charts',
+    recentTransactionsDesc: 'Show latest transaction list',
+    cashbookSummary: 'Cashbook Summary',
+    cashbookSummaryDesc: 'Show total cash to give/take',
   },
   hi: {
     // Navigation

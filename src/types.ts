@@ -83,4 +83,7 @@ export interface AppSettings {
   cashbookReminderDays?: number;
   syncCashbookWithExpenses?: boolean;
   language?: 'en' | 'hi' | 'gu';
+  showRecentTransactionsWidget?: boolean;
+  showCategoryOverviewWidget?: boolean;
+  showCashbookSummaryWidget?: boolean;
 }

@@ -344,7 +344,7 @@ export default function Dashboard() {
       </div>
 
       {/* Cashbook Summary Section */}
-      {settings?.syncCashbookWithExpenses && cashbookCustomers && cashbookCustomers.length > 0 && (
+      {settings?.showCashbookSummaryWidget !== false && settings?.syncCashbookWithExpenses && cashbookCustomers && cashbookCustomers.length > 0 && (
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-50 space-y-5">
           <div className="flex items-center justify-between px-1">
             <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t('cashbook', lang)}</h3>
@@ -379,6 +379,7 @@ export default function Dashboard() {
 
 
       {/* Overview Charts */}
+      {settings?.showCategoryOverviewWidget !== false && (
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-50 space-y-5">
         <div className="flex items-center justify-between px-1">
           <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t('overview', lang) || 'Category Overview'}</h3>
@@ -495,8 +496,10 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+      )}
 
       {/* Recent Transactions */}
+      {settings?.showRecentTransactionsWidget !== false && (
       <div className="space-y-3">
         <div className="flex items-center justify-between px-1">
           <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t('recentTransactions', lang)}</h3>
@@ -530,6 +533,7 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }

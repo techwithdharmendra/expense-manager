@@ -90,7 +90,10 @@ export async function initDefaultSettings() {
       monthStartDate: 1,
       cashbookReminderDays: 1,
       syncCashbookWithExpenses: false,
-      language: 'en'
+      language: 'en',
+      showRecentTransactionsWidget: true,
+      showCategoryOverviewWidget: true,
+      showCashbookSummaryWidget: true
     });
   } else {
     // Add missing settings if updating from older version
@@ -103,6 +106,9 @@ export async function initDefaultSettings() {
     if (settings.cashbookReminderDays === undefined) { settings.cashbookReminderDays = 1; updated = true; }
     if (settings.syncCashbookWithExpenses === undefined) { settings.syncCashbookWithExpenses = false; updated = true; }
     if (settings.language === undefined) { settings.language = 'en'; updated = true; }
+    if (settings.showRecentTransactionsWidget === undefined) { settings.showRecentTransactionsWidget = true; updated = true; }
+    if (settings.showCategoryOverviewWidget === undefined) { settings.showCategoryOverviewWidget = true; updated = true; }
+    if (settings.showCashbookSummaryWidget === undefined) { settings.showCashbookSummaryWidget = true; updated = true; }
     if (updated) await db.settings.put(settings);
   }
 }

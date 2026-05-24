@@ -21,7 +21,11 @@ import {
   RefreshCw,
   Database,
   Bell,
-  Globe
+  Globe,
+  LayoutDashboard,
+  PieChart,
+  Clock,
+  BookOpen
 } from 'lucide-react';
 import { cn, formatCurrency } from '../lib/utils';
 import { motion } from 'motion/react';
@@ -621,6 +625,90 @@ export default function Settings() {
                 className={cn(
                   "absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-sm z-10",
                   settings?.syncCashbookWithExpenses ? "left-7" : "left-1"
+                )} 
+              />
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Dashboard Layout */}
+      <section className="space-y-3">
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">{t('dashboardLayout', lang) || 'Dashboard Layout'}</h3>
+        <div className="bg-white rounded-2xl p-1 shadow-sm border border-gray-50 flex flex-col">
+          <div className="flex w-full items-center justify-between p-4 border-b border-gray-50">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                <PieChart className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-gray-700">{t('categoryOverview', lang) || 'Category Overview'}</p>
+                <p className="text-[10px] text-gray-400 font-medium">{t('categoryOverviewDesc', lang) || 'Show expense/income donut charts'}</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => db.settings.update(1, { showCategoryOverviewWidget: settings?.showCategoryOverviewWidget === false ? true : false })}
+              className={cn(
+                "w-12 h-6 rounded-full transition-colors relative shrink-0",
+                settings?.showCategoryOverviewWidget !== false ? "bg-indigo-600" : "bg-gray-300"
+              )}
+            >
+              <div 
+                className={cn(
+                  "absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-sm z-10",
+                  settings?.showCategoryOverviewWidget !== false ? "left-7" : "left-1"
+                )} 
+              />
+            </button>
+          </div>
+
+          <div className="flex w-full items-center justify-between p-4 border-b border-gray-50">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                <Clock className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-gray-700">{t('recentTransactions', lang) || 'Recent Transactions'}</p>
+                <p className="text-[10px] text-gray-400 font-medium">{t('recentTransactionsDesc', lang) || 'Show latest transaction list'}</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => db.settings.update(1, { showRecentTransactionsWidget: settings?.showRecentTransactionsWidget === false ? true : false })}
+              className={cn(
+                "w-12 h-6 rounded-full transition-colors relative shrink-0",
+                settings?.showRecentTransactionsWidget !== false ? "bg-indigo-600" : "bg-gray-300"
+              )}
+            >
+              <div 
+                className={cn(
+                  "absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-sm z-10",
+                  settings?.showRecentTransactionsWidget !== false ? "left-7" : "left-1"
+                )} 
+              />
+            </button>
+          </div>
+
+          <div className="flex w-full items-center justify-between p-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                <BookOpen className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-gray-700">{t('cashbookSummary', lang) || 'Cashbook Summary'}</p>
+                <p className="text-[10px] text-gray-400 font-medium">{t('cashbookSummaryDesc', lang) || 'Show total cash to give/take'}</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => db.settings.update(1, { showCashbookSummaryWidget: settings?.showCashbookSummaryWidget === false ? true : false })}
+              className={cn(
+                "w-12 h-6 rounded-full transition-colors relative shrink-0",
+                settings?.showCashbookSummaryWidget !== false ? "bg-indigo-600" : "bg-gray-300"
+              )}
+            >
+              <div 
+                className={cn(
+                  "absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-sm z-10",
+                  settings?.showCashbookSummaryWidget !== false ? "left-7" : "left-1"
                 )} 
               />
             </button>
