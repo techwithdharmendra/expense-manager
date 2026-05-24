@@ -76,14 +76,14 @@ export default function Dashboard() {
     const { start, end } = getMonthCycleStartEnd(new Date(), startDay);
     
     await db.transactions.where('date').between(start, end, true, true).each(t => {
-      if (t.type === 'income') income += t.amount;
-      else if (t.type === 'expense') expense += t.amount;
+      if (t.type === 'income') income = Math.round((income + t.amount) * 100) / 100;
+      else if (t.type === 'expense') expense = Math.round((expense + t.amount) * 100) / 100;
     });
 
     return {
       income,
       expense,
-      balance,
+      balance: Math.round(balance * 100) / 100,
       savings: income > 0 ? ((income - expense) / income) * 100 : 0
     };
   }, [settings?.monthStartDate], { balance: 0, income: 0, expense: 0, savings: 0 });
@@ -123,8 +123,8 @@ export default function Dashboard() {
       const dayT = recentTxs.filter(t => new Date(t.date).toISOString().split('T')[0] === day);
       return {
         name: new Date(day).toLocaleDateString(lang === 'hi' ? 'hi-IN' : lang === 'gu' ? 'gu-IN' : 'en-GB', { weekday: 'short' }),
-        expense: dayT.filter(t => t.type === 'expense').reduce((a, b) => a + b.amount, 0),
-        income: dayT.filter(t => t.type === 'income').reduce((a, b) => a + b.amount, 0),
+        expense: Math.round((dayT.filter(t => t.type === 'expense').reduce((a, b) => a + b.amount, 0)) * 100) / 100,
+        income: Math.round((dayT.filter(t => t.type === 'income').reduce((a, b) => a + b.amount, 0)) * 100) / 100,
       };
     });
   }, [lang], []);
@@ -166,7 +166,7 @@ export default function Dashboard() {
           id: catId
         };
       }
-      stats_map[catName].value += tx.amount;
+      stats_map[catName].value = Math.round((stats_map[catName].value + tx.amount) * 100) / 100;
     });
     
     return Object.values(stats_map).sort((a, b) => b.value - a.value);

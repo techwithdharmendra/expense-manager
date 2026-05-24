@@ -261,8 +261,8 @@ export default function Analytics() {
           expense: 0 
         };
       }
-      if (t.type === 'income') groups[dateKey].income += t.amount;
-      else groups[dateKey].expense += t.amount;
+      if (t.type === 'income') groups[dateKey].income = Math.round((groups[dateKey].income + t.amount) * 100) / 100;
+      else groups[dateKey].expense = Math.round((groups[dateKey].expense + t.amount) * 100) / 100;
     });
 
     return Object.values(groups).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -301,10 +301,11 @@ export default function Analytics() {
       stats[statKey].amount += tx.amount;
       
       // Track subcategory breakdown
-      if (cat && cat.id !== mainCat?.id) {
-         let subCatStat = stats[statKey].subcategories.find(sc => sc.id === cat!.id);
+      const trackingCat = (cat && cat.id !== mainCat?.id) ? cat : mainCat;
+      if (trackingCat) {
+         let subCatStat = stats[statKey].subcategories.find(sc => sc.id === trackingCat.id);
          if (!subCatStat) {
-             subCatStat = { id: cat!.id, name: cat!.name, amount: 0, color: cat!.color, icon: cat!.icon };
+             subCatStat = { id: trackingCat.id, name: trackingCat.name, amount: 0, color: trackingCat.color, icon: trackingCat.icon };
              stats[statKey].subcategories.push(subCatStat);
          }
          subCatStat.amount += tx.amount;
@@ -317,10 +318,10 @@ export default function Analytics() {
     return result;
   }, [filteredTransactions, categories, lang, filters.type]);
 
-  const totalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-  const totalExpense = filteredTransactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-  const totalTransfer = filteredTransactions.filter(t => t.type === 'transfer').reduce((s, t) => s + t.amount, 0);
-  const totalAmount = filters.type === 'all' ? (totalIncome - totalExpense) : 
+  const totalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((s, t) => Math.round((s + t.amount) * 100) / 100, 0);
+  const totalExpense = filteredTransactions.filter(t => t.type === 'expense').reduce((s, t) => Math.round((s + t.amount) * 100) / 100, 0);
+  const totalTransfer = filteredTransactions.filter(t => t.type === 'transfer').reduce((s, t) => Math.round((s + t.amount) * 100) / 100, 0);
+  const totalAmount = filters.type === 'all' ? Math.round((totalIncome - totalExpense) * 100) / 100 : 
                       (filters.type === 'expense' ? totalExpense : 
                       (filters.type === 'income' ? totalIncome : totalTransfer));
 

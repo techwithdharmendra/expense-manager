@@ -39,7 +39,7 @@ export async function addTransaction(transaction: Transaction) {
 }
 
 export async function updateTransaction(id: number, newTransaction: Transaction) {
-  return await db.transaction('rw', db.transactions, db.accounts, async () => {
+  return await db.transaction('rw', [db.transactions, db.accounts, db.cashbookEntries, db.cashbookCustomers], async () => {
     const oldTransaction = await db.transactions.get(id);
     if (!oldTransaction) throw new Error('Transaction not found');
 
@@ -57,11 +57,34 @@ export async function updateTransaction(id: number, newTransaction: Transaction)
     if (newTransaction.type === 'transfer' && newTransaction.toAccountId) {
       await updateAccountBalance(Number(newTransaction.toAccountId), newTransaction.amount, 'income');
     }
+
+    // 4. Update linked Cashbook entry if exists
+    const linkedCashbookEntry = await (db as any).cashbookEntries?.where('linkedTransactionId').equals(id).first();
+    if (linkedCashbookEntry) {
+      const customer = await (db as any).cashbookCustomers?.get(linkedCashbookEntry.customerId);
+      if (customer) {
+        let newBalance = customer.balance;
+        // Reverse old amount
+        if (linkedCashbookEntry.type === 'gave') {
+          newBalance += oldTransaction.amount;
+        } else {
+          newBalance -= oldTransaction.amount;
+        }
+        // Apply new amount
+        if (linkedCashbookEntry.type === 'gave') {
+          newBalance -= newTransaction.amount;
+        } else {
+          newBalance += newTransaction.amount;
+        }
+        await (db as any).cashbookEntries?.update(linkedCashbookEntry.id!, { amount: newTransaction.amount });
+        await (db as any).cashbookCustomers?.update(customer.id!, { balance: newBalance });
+      }
+    }
   });
 }
 
 export async function deleteTransaction(id: number) {
-  return await db.transaction('rw', db.transactions, db.accounts, async () => {
+  return await db.transaction('rw', [db.transactions, db.accounts, db.cashbookEntries, db.cashbookCustomers], async () => {
     const transaction = await db.transactions.get(id);
     if (!transaction) return;
 
@@ -69,6 +92,22 @@ export async function deleteTransaction(id: number) {
     await updateAccountBalance(Number(transaction.accountId), transaction.amount, transaction.type, true);
     if (transaction.type === 'transfer' && transaction.toAccountId) {
       await updateAccountBalance(Number(transaction.toAccountId), transaction.amount, 'income', true);
+    }
+
+    // Update Cashbook if linked
+    const linkedCashbookEntry = await (db as any).cashbookEntries?.where('linkedTransactionId').equals(id).first();
+    if (linkedCashbookEntry) {
+      const customer = await (db as any).cashbookCustomers?.get(linkedCashbookEntry.customerId);
+      if (customer) {
+        let newBalance = customer.balance;
+        if (linkedCashbookEntry.type === 'gave') {
+          newBalance += transaction.amount;
+        } else {
+          newBalance -= transaction.amount;
+        }
+        await (db as any).cashbookEntries?.delete(linkedCashbookEntry.id!);
+        await (db as any).cashbookCustomers?.update(customer.id!, { balance: newBalance });
+      }
     }
 
     await db.transactions.delete(id);

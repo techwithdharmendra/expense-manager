@@ -217,10 +217,10 @@ export default function Transactions() {
     let income = 0;
     let expense = 0;
     filteredTransactions.forEach(t => {
-      if (t.type === 'income') income += t.amount;
-      else if (t.type === 'expense') expense += t.amount;
+      if (t.type === 'income') income = Math.round((income + t.amount) * 100) / 100;
+      else if (t.type === 'expense') expense = Math.round((expense + t.amount) * 100) / 100;
     });
-    return { income, expense, balance: income - expense };
+    return { income, expense, balance: Math.round((income - expense) * 100) / 100 };
   }, [filteredTransactions]);
 
   return (
@@ -291,9 +291,9 @@ export default function Transactions() {
 
         <div className="space-y-6">
           {groupedTransactions.map((group) => {
-            const dayIncome = group.items.filter(i => i.type === 'income').reduce((s, i) => s + i.amount, 0);
-            const dayExpense = group.items.filter(i => i.type === 'expense').reduce((s, i) => s + i.amount, 0);
-            const dayBalance = dayIncome - dayExpense;
+            const dayIncome = Math.round((group.items.filter(i => i.type === 'income').reduce((s, i) => s + i.amount, 0)) * 100) / 100;
+            const dayExpense = Math.round((group.items.filter(i => i.type === 'expense').reduce((s, i) => s + i.amount, 0)) * 100) / 100;
+            const dayBalance = Math.round((dayIncome - dayExpense) * 100) / 100;
 
             return (
               <div key={group.date} className="space-y-2">
