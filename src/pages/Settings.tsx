@@ -619,7 +619,6 @@ export default function Settings() {
               <option value="/transactions">Transactions</option>
               <option value="/analytics">Analytics</option>
               <option value="/cashbook">Cashbook</option>
-              <option value="/budget">Budgets</option>
             </select>
           </div>
           

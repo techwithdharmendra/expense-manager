@@ -23,7 +23,6 @@ import { t } from './lib/i18n';
 import Dashboard from './pages/Dashboard';
 import Transactions from './pages/Transactions';
 import Analytics from './pages/Analytics';
-import Budget from './pages/Budget';
 import Settings from './pages/Settings';
 import AddTransaction from './pages/AddTransaction';
 import ManageAccounts from './pages/ManageAccounts';
@@ -229,7 +228,6 @@ export default function App() {
                 <Route path="/" element={<PageWrapper><Dashboard /></PageWrapper>} />
                 <Route path="/transactions" element={<PageWrapper><Transactions /></PageWrapper>} />
                 <Route path="/analytics" element={<PageWrapper><Analytics /></PageWrapper>} />
-                <Route path="/budget" element={<PageWrapper><Budget /></PageWrapper>} />
                 <Route path="/settings" element={<PageWrapper><Settings /></PageWrapper>} />
                 <Route path="/settings/accounts" element={<PageWrapper><ManageAccounts /></PageWrapper>} />
                 <Route path="/settings/categories" element={<PageWrapper><ManageCategories /></PageWrapper>} />
