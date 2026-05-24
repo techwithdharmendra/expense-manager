@@ -32,6 +32,7 @@ import ManageSubCategories from './pages/ManageSubCategories';
 
 import CashBook from './pages/CashBook';
 import CashbookCustomerDetail from './pages/CashbookCustomerDetail';
+import AutoBackupService from './components/AutoBackupService';
 
 import { Toaster } from 'sonner';
 
@@ -202,6 +203,7 @@ export default function App() {
       <BackButtonHandler />
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-0 sm:p-4 font-sans selection:bg-indigo-100">
         <Toaster position="top-center" richColors theme={settings?.isDarkMode ? 'dark' : 'light'} />
+        <AutoBackupService />
         <div className="w-full max-w-md bg-white h-screen h-[100dvh] sm:min-h-[850px] sm:max-h-[850px] shadow-2xl relative overflow-hidden sm:rounded-[3rem] ring-1 ring-gray-100 flex flex-col">
           <div className="flex-1 overflow-y-auto no-scrollbar bg-gray-50/10">
             <AnimatePresence mode="wait">

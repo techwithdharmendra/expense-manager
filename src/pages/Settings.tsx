@@ -25,7 +25,8 @@ import {
   LayoutDashboard,
   PieChart,
   Clock,
-  BookOpen
+  BookOpen,
+  Mail
 } from 'lucide-react';
 import { cn, formatCurrency } from '../lib/utils';
 import { motion } from 'motion/react';
@@ -36,6 +37,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
+import { saveToExpenseManagerDir, ensureExpenseManagerDir } from '../lib/storageUtils';
 
 export default function Settings() {
   const settings = useLiveQuery(() => db.settings.get(1));
@@ -105,28 +107,8 @@ export default function Settings() {
 
       if (Capacitor.isNativePlatform()) {
         try {
-          await Filesystem.writeFile({
-            path: fileName,
-            data: jsonData,
-            directory: Directory.Cache,
-            encoding: Encoding.UTF8,
-          });
-          
-          toast.success('Backup exported successfully');
-          
-          try {
-            const { uri: fileUri } = await Filesystem.getUri({
-              path: fileName,
-              directory: Directory.Cache
-            });
-
-            await Share.share({
-              title: 'Export Backup',
-              files: [fileUri],
-            });
-          } catch (shareErr) {
-            console.log('Share dismissed/cancelled');
-          }
+          await saveToExpenseManagerDir(fileName, jsonData);
+          toast.success('Backup exported to ExpenseManager folder successfully');
           return; 
         } catch (fileErr: any) {
           console.error('File write error:', fileErr);
@@ -154,40 +136,28 @@ export default function Settings() {
        const categories = await db.categories.toArray();
        const accounts = await db.accounts.toArray();
        
+       let totalIncome = 0;
+       let totalExpense = 0;
        let csv = 'Date,Title,Type,Category,Amount,Account,Note\n';
        transactions.forEach(t => {
          const cat = categories.find(c => c.id === t.categoryId);
          const acc = accounts.find(a => a.id === t.accountId);
          const dateFormatted = new Date(t.date).toISOString().split('T')[0];
          csv += `${dateFormatted},"${t.title.replace(/"/g, '""')}",${t.type},"${cat?.name || ''}",${t.amount},"${acc?.name || ''}","${(t.note || '').replace(/"/g, '""')}"\n`;
+         if (t.type === 'income') totalIncome += t.amount;
+         else if (t.type === 'expense') totalExpense += t.amount;
        });
+
+       csv += `\n,,,"Total Income",${totalIncome},,\n`;
+       csv += `,,,"Total Expense",${totalExpense},,\n`;
+       csv += `,,,"Balance",${totalIncome - totalExpense},,\n`;
        
        const fileName = `expenses_${new Date().getTime()}.csv`;
 
        if (Capacitor.isNativePlatform()) {
          try {
-           await Filesystem.writeFile({
-              path: fileName,
-              data: csv,
-              directory: Directory.Cache,
-              encoding: Encoding.UTF8,
-           });
-           
-           toast.success('CSV exported successfully');
-
-           try {
-             const { uri } = await Filesystem.getUri({
-               path: fileName,
-               directory: Directory.Cache
-             });
-
-             await Share.share({
-                title: 'Export Transactions',
-                files: [uri],
-             });
-           } catch (shareErr) {
-             console.log('CSV Share dismissed');
-           }
+           await saveToExpenseManagerDir(fileName, csv, true);
+           toast.success('CSV exported to ExpenseManager folder successfully');
            return;
          } catch (nativeErr: any) {
            console.error('CSV Native Export Error:', nativeErr);
@@ -756,6 +726,28 @@ export default function Settings() {
       <section className="space-y-3">
         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">{t('dataManagement', lang) || 'Data & Backup'}</h3>
         <div className="bg-white rounded-2xl p-1 shadow-sm border border-gray-50 flex flex-col">
+          
+          <div className="flex w-full items-center justify-between p-4 border-b border-gray-50">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <Database className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-gray-700">Auto-Backup</p>
+                <p className="text-[10px] text-gray-400 font-medium">Automatic backup strategy</p>
+              </div>
+            </div>
+            <select 
+              value={settings?.backupFrequencyDays || 0}
+              onChange={e => db.settings.update(1, { backupFrequencyDays: parseInt(e.target.value) })}
+              className="px-3 py-1.5 bg-gray-50 text-xs font-bold rounded-xl outline-none border-r-[8px] border-transparent"
+            >
+              <option value={0}>Disabled</option>
+              <option value={7}>Every 7 days</option>
+              <option value={30}>Every Month</option>
+            </select>
+          </div>
+
           <button onClick={exportCSV} className="flex w-full items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
@@ -803,6 +795,25 @@ export default function Settings() {
               </div>
             </div>
           </button>
+        </div>
+      </section>
+
+      {/* Help & Suggestions */}
+      <section className="space-y-3">
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">About & Support</h3>
+        <div className="bg-white rounded-2xl p-1 shadow-sm border border-gray-50 flex flex-col">
+          <a href="mailto:dharmendrahadiyal2272@gmail.com" className="flex w-full items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50 text-left">
+             <div className="flex items-center space-x-3">
+               <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                 <Mail className="w-5 h-5" />
+               </div>
+               <div>
+                  <p className="text-sm font-bold text-gray-700">Help & Suggestions</p>
+                  <p className="text-[10px] text-gray-400 font-medium">Contact developer via Email</p>
+               </div>
+             </div>
+             <ChevronRight className="w-5 h-5 text-gray-300" />
+          </a>
         </div>
       </section>
 

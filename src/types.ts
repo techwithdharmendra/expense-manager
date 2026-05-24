@@ -86,4 +86,7 @@ export interface AppSettings {
   showRecentTransactionsWidget?: boolean;
   showCategoryOverviewWidget?: boolean;
   showCashbookSummaryWidget?: boolean;
+  autoBackupType?: 'none' | 'app' | 'prompt';
+  lastBackupDate?: Date;
+  backupFrequencyDays?: number;
 }

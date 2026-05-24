@@ -93,7 +93,9 @@ export async function initDefaultSettings() {
       language: 'en',
       showRecentTransactionsWidget: true,
       showCategoryOverviewWidget: true,
-      showCashbookSummaryWidget: true
+      showCashbookSummaryWidget: true,
+      autoBackupType: 'none',
+      backupFrequencyDays: 7
     });
   } else {
     // Add missing settings if updating from older version
@@ -109,6 +111,8 @@ export async function initDefaultSettings() {
     if (settings.showRecentTransactionsWidget === undefined) { settings.showRecentTransactionsWidget = true; updated = true; }
     if (settings.showCategoryOverviewWidget === undefined) { settings.showCategoryOverviewWidget = true; updated = true; }
     if (settings.showCashbookSummaryWidget === undefined) { settings.showCashbookSummaryWidget = true; updated = true; }
+    if (settings.autoBackupType === undefined) { settings.autoBackupType = 'none'; updated = true; }
+    if (settings.backupFrequencyDays === undefined) { settings.backupFrequencyDays = 7; updated = true; }
     if (updated) await db.settings.put(settings);
   }
 }
