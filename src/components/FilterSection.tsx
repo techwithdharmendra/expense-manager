@@ -55,7 +55,7 @@ export default function FilterSection({
   };
 
   const filteredCategories = React.useMemo(() => {
-    let cats = categories;
+    let cats = categories.filter(c => c.name !== 'Cashbook');
     if (filters.type !== 'all') {
       cats = cats.filter(c => c.type === filters.type);
     }

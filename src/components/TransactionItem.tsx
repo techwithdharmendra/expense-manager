@@ -34,7 +34,13 @@ export default React.memo(function TransactionItem({
   return (
     <motion.div 
       layout
-      onClick={() => navigate(`/edit/${transaction.id}`)}
+      onClick={() => {
+        if (category?.name === 'Cashbook') {
+          navigate('/cashbook');
+        } else {
+          navigate(`/edit/${transaction.id}`);
+        }
+      }}
       className="flex items-center justify-between px-3.5 py-2.5 bg-white rounded-[16px] border border-gray-50 shadow-xs active:bg-gray-100 transition-all cursor-pointer group hover:border-indigo-100"
     >
       <div className="flex items-center space-x-3 overflow-hidden">

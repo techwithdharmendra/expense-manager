@@ -525,7 +525,7 @@ export default function AddTransaction() {
               <div className="space-y-2 px-1">
              <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Category</p>
              <div className="flex overflow-x-auto pb-3 gap-3 no-scrollbar">
-                {categories?.filter(c => c.type === type && !c.parentId).map(c => {
+                {categories?.filter(c => c.type === type && !c.parentId && c.name !== 'Cashbook').map(c => {
                   const IconComp = getIconByName(c.icon || 'Tag');
                   const isSelected = categoryId === c.id || categories.find(cat => cat.id === categoryId)?.parentId === c.id;
                   return (

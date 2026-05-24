@@ -20,7 +20,7 @@ export default function ManageCategories() {
   const [activeType, setActiveType] = useState<TransactionType>('expense');
   
   const categoriesLive = useLiveQuery(
-    () => db.categories.where('type').equals(activeType).filter(c => !c.parentId).toArray(),
+    () => db.categories.where('type').equals(activeType).filter(c => !c.parentId && c.name !== 'Cashbook').toArray(),
     [activeType]
   );
   
