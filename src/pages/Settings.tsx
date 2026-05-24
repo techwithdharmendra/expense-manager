@@ -75,12 +75,14 @@ export default function Settings() {
 
   const exportData = async () => {
     try {
-      const [transactions, categories, budgets, accounts, settingsData] = await Promise.all([
+      const [transactions, categories, budgets, accounts, settingsData, cashbookCustomers, cashbookEntries] = await Promise.all([
         db.transactions.toArray(),
         db.categories.toArray(),
         db.budgets.toArray(),
         db.accounts.toArray(),
-        db.settings.get(1)
+        db.settings.get(1),
+        db.cashbookCustomers.toArray(),
+        db.cashbookEntries.toArray()
       ]);
       
       const data = { 
@@ -90,6 +92,8 @@ export default function Settings() {
         budgets, 
         accounts, 
         settings: settingsData,
+        cashbookCustomers,
+        cashbookEntries,
         exportedAt: new Date().toISOString()
       };
       const jsonData = JSON.stringify(data);
@@ -208,6 +212,8 @@ export default function Settings() {
         db.budgets.clear(),
         db.accounts.clear(),
         db.categories.clear(),
+        db.cashbookCustomers.clear(),
+        db.cashbookEntries.clear(),
         db.settings.clear()
       ]);
       toast.success('All data cleared');
@@ -266,6 +272,8 @@ export default function Settings() {
         db.categories.clear(),
         db.budgets.clear(),
         db.accounts.clear(),
+        db.cashbookCustomers.clear(),
+        db.cashbookEntries.clear(),
         db.settings.clear()
       ]);
       
@@ -274,10 +282,18 @@ export default function Settings() {
         date: new Date(t.date)
       }));
       
+      const cashbookEntries = (importPending.cashbookEntries || []).map((t: any) => ({
+        ...t,
+        date: new Date(t.date),
+        dueDate: t.dueDate ? new Date(t.dueDate) : undefined
+      }));
+      
       if (transactions.length > 0) await db.transactions.bulkAdd(transactions);
       if (importPending.categories?.length > 0) await db.categories.bulkAdd(importPending.categories);
       if (importPending.budgets?.length > 0) await db.budgets.bulkAdd(importPending.budgets);
       if (importPending.accounts?.length > 0) await db.accounts.bulkAdd(importPending.accounts);
+      if (importPending.cashbookCustomers?.length > 0) await db.cashbookCustomers.bulkAdd(importPending.cashbookCustomers);
+      if (cashbookEntries.length > 0) await db.cashbookEntries.bulkAdd(cashbookEntries);
       if (importPending.settings) {
         await db.settings.put(importPending.settings);
       }

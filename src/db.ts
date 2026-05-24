@@ -113,6 +113,8 @@ export async function resetWithSampleData() {
   await db.budgets.clear();
   await db.accounts.clear();
   await db.categories.clear();
+  await db.cashbookCustomers.clear();
+  await db.cashbookEntries.clear();
 
   // Categories
   const catIds = await db.categories.bulkAdd([
