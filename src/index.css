@@ -25,6 +25,14 @@
   body {
     @apply antialiased text-gray-900 bg-slate-50;
     overscroll-behavior-y: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  input, textarea, select {
+    -webkit-user-select: auto;
+    user-select: auto;
   }
 }
 

@@ -22,6 +22,12 @@ export class ExpenseDB extends Dexie {
       cashbookCustomers: '++id, name, phone, balance',
       cashbookEntries: '++id, customerId, type, date, dueDate, isCleared'
     });
+    
+    // Add optimized indexes for analytical queries in version 5
+    this.version(5).stores({
+      transactions: '++id, title, amount, type, categoryId, accountId, date, isRecurring, [type+date], [accountId+date], [categoryId+date]',
+      cashbookEntries: '++id, customerId, type, date, dueDate, isCleared, [customerId+isCleared]'
+    });
   }
 }
 
