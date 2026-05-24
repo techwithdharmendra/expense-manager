@@ -269,7 +269,7 @@ export default function Analytics() {
   }, [filteredTransactions, lang]);
 
   const catStats = useMemo(() => {
-    const stats: { [key: string]: { id: string, amount: number, color: string, name: string, type: string, subcategories: any[] } } = {};
+    const stats: { [key: string]: { id: string | string[], amount: number, color: string, name: string, type: string, subcategories: any[] } } = {};
     filteredTransactions.filter(tx => tx.type !== 'transfer').forEach(tx => {
       let cat = categories.find(c => String(c.id) === String(tx.categoryId));
       
@@ -278,25 +278,34 @@ export default function Analytics() {
          mainCat = categories.find(c => String(c.id) === String(cat!.parentId)) || cat;
       }
       
-      const catId = mainCat?.id?.toString() || 'unknown';
-      if (!stats[catId]) {
-        stats[catId] = { 
-          id: catId,
+      let catId = mainCat?.id?.toString() || 'unknown';
+      let statKey = catId;
+      
+      if (filters.type === 'all' && mainCat?.name === 'Cashbook') {
+         statKey = 'merged_cashbook';
+      }
+
+      if (!stats[statKey]) {
+        stats[statKey] = { 
+          id: statKey === 'merged_cashbook' ? [catId] : catId,
           amount: 0, 
           color: mainCat?.color || '#cbd5e1', 
           name: mainCat?.name || (t('unknown', lang) || 'Unknown'),
-          type: tx.type,
+          type: statKey === 'merged_cashbook' ? 'cashbook' : tx.type,
           subcategories: []
         };
+      } else if (statKey === 'merged_cashbook' && Array.isArray(stats[statKey].id) && !stats[statKey].id.includes(catId)) {
+        (stats[statKey].id as string[]).push(catId);
       }
-      stats[catId].amount += tx.amount;
+
+      stats[statKey].amount += tx.amount;
       
       // Track subcategory breakdown
       if (cat && cat.id !== mainCat?.id) {
-         let subCatStat = stats[catId].subcategories.find(sc => sc.id === cat!.id);
+         let subCatStat = stats[statKey].subcategories.find(sc => sc.id === cat!.id);
          if (!subCatStat) {
              subCatStat = { id: cat!.id, name: cat!.name, amount: 0, color: cat!.color, icon: cat!.icon };
-             stats[catId].subcategories.push(subCatStat);
+             stats[statKey].subcategories.push(subCatStat);
          }
          subCatStat.amount += tx.amount;
       }
@@ -306,7 +315,7 @@ export default function Analytics() {
         stat.subcategories.sort((a, b) => b.amount - a.amount);
     });
     return result;
-  }, [filteredTransactions, categories, lang]);
+  }, [filteredTransactions, categories, lang, filters.type]);
 
   const totalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const totalExpense = filteredTransactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
@@ -787,7 +796,7 @@ export default function Analytics() {
                 <div className="mt-6 flex justify-end space-x-3">
                    <button 
                      onClick={() => {
-                        setFilters(prev => ({ ...prev, categoryId: [String(selectedDetailedCategory.id)] }));
+                        setFilters(prev => ({ ...prev, categoryId: Array.isArray(selectedDetailedCategory.id) ? selectedDetailedCategory.id.map(String) : [String(selectedDetailedCategory.id)] }));
                         setSelectedDetailedCategory(null);
                      }}
                      className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center hover:bg-indigo-100 transition-colors active:scale-95"
@@ -796,7 +805,7 @@ export default function Analytics() {
                    </button>
                    <button 
                      onClick={() => {
-                        filterStore.setState({ ...filters, categoryId: [String(selectedDetailedCategory.id)] });
+                        filterStore.setState({ ...filters, categoryId: Array.isArray(selectedDetailedCategory.id) ? selectedDetailedCategory.id.map(String) : [String(selectedDetailedCategory.id)] });
                         setSelectedDetailedCategory(null);
                         navigate('/transactions');
                      }}
