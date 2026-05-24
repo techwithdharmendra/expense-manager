@@ -117,6 +117,23 @@ function BackButtonHandler() {
   return null;
 }
 
+function StartScreenHandler() {
+  const settings = useLiveQuery(() => db.settings.get(1));
+  const navigate = useNavigate();
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    if (settings && !checked) {
+      setChecked(true);
+      if (settings.startScreen && settings.startScreen !== '/' && (window.location.hash === '' || window.location.hash === '#/')) {
+        navigate(settings.startScreen, { replace: true });
+      }
+    }
+  }, [settings, checked, navigate]);
+
+  return null;
+}
+
 export default function App() {
   const [initialized, setInitialized] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
@@ -200,6 +217,7 @@ export default function App() {
 
   return (
     <Router>
+      <StartScreenHandler />
       <BackButtonHandler />
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-0 sm:p-4 font-sans selection:bg-indigo-100">
         <Toaster position="top-center" richColors theme={settings?.isDarkMode ? 'dark' : 'light'} />

@@ -599,6 +599,30 @@ export default function Settings() {
               />
             </button>
           </div>
+          
+          <div className="flex w-full items-center justify-between p-4 bg-white active:bg-gray-50">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                <LayoutDashboard className="w-5 h-5" />
+              </div>
+              <div className="mr-2">
+                <p className="text-sm font-bold text-gray-700">App Start Screen</p>
+                <p className="text-[10px] text-gray-400 font-medium leading-tight">Default screen on app open</p>
+              </div>
+            </div>
+            <select 
+              value={settings?.startScreen || '/'}
+              onChange={e => db.settings.update(1, { startScreen: e.target.value })}
+              className="px-3 py-1.5 bg-gray-50 text-xs font-bold rounded-xl outline-none border-r-[8px] border-transparent max-w-[130px]"
+            >
+              <option value="/">Home Dashboard</option>
+              <option value="/transactions">Transactions</option>
+              <option value="/analytics">Analytics</option>
+              <option value="/cashbook">Cashbook</option>
+              <option value="/budget">Budgets</option>
+            </select>
+          </div>
+          
         </div>
       </section>
 

@@ -101,7 +101,8 @@ export async function initDefaultSettings() {
       showCategoryOverviewWidget: true,
       showCashbookSummaryWidget: true,
       autoBackupType: 'none',
-      backupFrequencyDays: 7
+      backupFrequencyDays: 7,
+      startScreen: '/'
     });
   } else {
     // Add missing settings if updating from older version
@@ -119,6 +120,7 @@ export async function initDefaultSettings() {
     if (settings.showCashbookSummaryWidget === undefined) { settings.showCashbookSummaryWidget = true; updated = true; }
     if (settings.autoBackupType === undefined) { settings.autoBackupType = 'none'; updated = true; }
     if (settings.backupFrequencyDays === undefined) { settings.backupFrequencyDays = 7; updated = true; }
+    if (settings.startScreen === undefined) { settings.startScreen = '/'; updated = true; }
     if (updated) await db.settings.put(settings);
   }
 }

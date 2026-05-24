@@ -89,4 +89,5 @@ export interface AppSettings {
   autoBackupType?: 'none' | 'app' | 'prompt';
   lastBackupDate?: Date;
   backupFrequencyDays?: number;
+  startScreen?: string;
 }
