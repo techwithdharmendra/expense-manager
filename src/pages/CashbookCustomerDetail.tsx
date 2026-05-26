@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { CashbookEntry } from '../types';
 import { t } from '../lib/i18n';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 export default function CashbookCustomerDetail() {
   const { id } = useParams();
@@ -34,6 +35,8 @@ export default function CashbookCustomerDetail() {
   const [showEditCustomer, setShowEditCustomer] = useState(false);
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
+  const [deleteCustomerConfirm, setDeleteCustomerConfirm] = useState(false);
+  const [deleteEntryConfirm, setDeleteEntryConfirm] = useState<CashbookEntry | null>(null);
 
   const handleEditCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -139,32 +142,30 @@ export default function CashbookCustomerDetail() {
   };
 
   const deleteCustomer = async () => {
-    if (window.confirm('Are you sure you want to delete this customer and all their records?')) {
-      await db.transaction('rw', [db.cashbookEntries, db.cashbookCustomers, db.transactions, db.accounts], async () => {
-        const customerEntries = await db.cashbookEntries.where('customerId').equals(customerId).toArray();
-        for (const entry of customerEntries) {
-          if (entry.linkedTransactionId) {
-            const tx = await db.transactions.get(entry.linkedTransactionId as number);
-            if (tx && tx.accountId) {
-              const account = await db.accounts.get(Number(tx.accountId));
-              if (account) {
-                // reverse transaction effect on account
-                let accBalance = account.balance;
-                if (tx.type === 'income') accBalance -= tx.amount;
-                if (tx.type === 'expense') accBalance += tx.amount;
-                await db.accounts.update(account.id!, { balance: accBalance });
-              }
+    await db.transaction('rw', [db.cashbookEntries, db.cashbookCustomers, db.transactions, db.accounts], async () => {
+      const customerEntries = await db.cashbookEntries.where('customerId').equals(customerId).toArray();
+      for (const entry of customerEntries) {
+        if (entry.linkedTransactionId) {
+          const tx = await db.transactions.get(entry.linkedTransactionId as number);
+          if (tx && tx.accountId) {
+            const account = await db.accounts.get(Number(tx.accountId));
+            if (account) {
+              // reverse transaction effect on account
+              let accBalance = account.balance;
+              if (tx.type === 'income') accBalance -= tx.amount;
+              if (tx.type === 'expense') accBalance += tx.amount;
+              await db.accounts.update(account.id!, { balance: accBalance });
             }
-            await db.transactions.delete(entry.linkedTransactionId as number);
           }
+          await db.transactions.delete(entry.linkedTransactionId as number);
         }
+      }
 
-        await db.cashbookEntries.where('customerId').equals(customerId).delete();
-        await db.cashbookCustomers.delete(customerId);
-      });
-      toast.success('Customer deleted');
-      navigate('/cashbook');
-    }
+      await db.cashbookEntries.where('customerId').equals(customerId).delete();
+      await db.cashbookCustomers.delete(customerId);
+    });
+    toast.success('Customer deleted');
+    navigate('/cashbook');
   };
 
   const markAsCleared = async (entryId: number) => {
@@ -177,45 +178,43 @@ export default function CashbookCustomerDetail() {
   };
 
   const deleteEntry = async (entry: CashbookEntry) => {
-    if (window.confirm('Are you sure you want to delete this entry? Balance will be updated.')) {
-      try {
-        let newBalance = customer?.balance || 0;
-        
-        // Reverse calculation
-        if (entry.type === 'gave') {
-          newBalance -= entry.amount; // We gave, so it previously increased they owed us. Reverse it.
-        } else {
-          newBalance += entry.amount; // We took, so it previously decreased. Reverse it.
-        }
-
-        await db.transaction('rw', [db.cashbookEntries, db.cashbookCustomers, db.transactions, db.accounts], async () => {
-          if (entry.id) {
-            await db.cashbookEntries.delete(entry.id);
-          }
-          await db.cashbookCustomers.update(customerId, {
-            balance: newBalance,
-            updatedAt: new Date()
-          });
-
-          if (entry.linkedTransactionId) {
-            const tx = await db.transactions.get(entry.linkedTransactionId as number);
-            if (tx && tx.accountId) {
-              const account = await db.accounts.get(Number(tx.accountId));
-              if (account) {
-                // reverse transaction effect on account
-                let accBalance = account.balance;
-                if (tx.type === 'income') accBalance -= tx.amount;
-                if (tx.type === 'expense') accBalance += tx.amount;
-                await db.accounts.update(account.id!, { balance: accBalance });
-              }
-            }
-            await db.transactions.delete(entry.linkedTransactionId as number);
-          }
-        });
-        toast.success('Entry deleted');
-      } catch (err) {
-        toast.error('Failed to delete entry');
+    try {
+      let newBalance = customer?.balance || 0;
+      
+      // Reverse calculation
+      if (entry.type === 'gave') {
+        newBalance -= entry.amount; // We gave, so it previously increased they owed us. Reverse it.
+      } else {
+        newBalance += entry.amount; // We took, so it previously decreased. Reverse it.
       }
+
+      await db.transaction('rw', [db.cashbookEntries, db.cashbookCustomers, db.transactions, db.accounts], async () => {
+        if (entry.id) {
+          await db.cashbookEntries.delete(entry.id);
+        }
+        await db.cashbookCustomers.update(customerId, {
+          balance: newBalance,
+          updatedAt: new Date()
+        });
+
+        if (entry.linkedTransactionId) {
+          const tx = await db.transactions.get(entry.linkedTransactionId as number);
+          if (tx && tx.accountId) {
+            const account = await db.accounts.get(Number(tx.accountId));
+            if (account) {
+              // reverse transaction effect on account
+              let accBalance = account.balance;
+              if (tx.type === 'income') accBalance -= tx.amount;
+              if (tx.type === 'expense') accBalance += tx.amount;
+              await db.accounts.update(account.id!, { balance: accBalance });
+            }
+          }
+          await db.transactions.delete(entry.linkedTransactionId as number);
+        }
+      });
+      toast.success('Entry deleted');
+    } catch (err) {
+      toast.error('Failed to delete entry');
     }
   };
 
@@ -243,7 +242,7 @@ export default function CashbookCustomerDetail() {
           >
             <Edit2 className="w-4 h-4" />
           </button>
-          <button onClick={deleteCustomer} className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-rose-400 shadow-sm border border-gray-50 active:scale-95 transition-transform">
+          <button onClick={() => setDeleteCustomerConfirm(true)} className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-rose-400 shadow-sm border border-gray-50 active:scale-95 transition-transform">
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
@@ -317,7 +316,7 @@ export default function CashbookCustomerDetail() {
                       {formatCurrency(entry.amount, settings)}
                     </p>
                     <button 
-                      onClick={() => deleteEntry(entry)}
+                      onClick={() => setDeleteEntryConfirm(entry)}
                       className="inline-block p-1 text-gray-300 hover:text-red-500 transition-colors mt-1"
                       title="Delete Entry"
                     >
@@ -570,6 +569,30 @@ export default function CashbookCustomerDetail() {
           </>
         )}
       </AnimatePresence>
+
+      <ConfirmDialog 
+        isOpen={deleteCustomerConfirm}
+        title="Delete Customer"
+        message="Are you sure you want to delete this customer and all their records?"
+        onConfirm={() => {
+          setDeleteCustomerConfirm(false);
+          deleteCustomer();
+        }}
+        onCancel={() => setDeleteCustomerConfirm(false)}
+        variant="danger"
+      />
+
+      <ConfirmDialog 
+        isOpen={!!deleteEntryConfirm}
+        title="Delete Entry"
+        message="Are you sure you want to delete this entry? Balance will be updated."
+        onConfirm={() => {
+          if (deleteEntryConfirm) deleteEntry(deleteEntryConfirm);
+          setDeleteEntryConfirm(null);
+        }}
+        onCancel={() => setDeleteEntryConfirm(null)}
+        variant="danger"
+      />
     </div>
   );
 }

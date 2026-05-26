@@ -28,6 +28,7 @@ import { Share } from '@capacitor/share';
 import { toast } from 'sonner';
 
 import { t } from '../lib/i18n';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 export default function AddTransaction() {
   const navigate = useNavigate();
@@ -73,6 +74,7 @@ export default function AddTransaction() {
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [showNotes, setShowNotes] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Helper to handle category selection and title pre-fill
   const handleCategorySelect = (catId: string | number) => {
@@ -356,14 +358,12 @@ export default function AddTransaction() {
 
   const handleDelete = async () => {
     if (!id) return;
-    if (window.confirm('Are you sure you want to delete this transaction?')) {
-      try {
-        await deleteTransaction(Number(id));
-        toast.success('Transaction deleted');
-        navigate(-1);
-      } catch (err) {
-        toast.error('Failed to delete transaction');
-      }
+    try {
+      await deleteTransaction(Number(id));
+      toast.success('Transaction deleted');
+      navigate(-1);
+    } catch (err) {
+      toast.error('Failed to delete transaction');
     }
   };
 
@@ -725,7 +725,7 @@ export default function AddTransaction() {
           {id && (
             <button 
               type="button"
-              onClick={handleDelete}
+              onClick={() => setShowDeleteConfirm(true)}
               className="w-full bg-rose-50 text-rose-500 py-3.5 rounded-2xl font-bold active:scale-[0.98] transition-transform flex items-center justify-center space-x-2 border border-rose-100/50"
             >
               <X className="w-5 h-5" />
@@ -843,6 +843,18 @@ export default function AddTransaction() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog 
+        isOpen={showDeleteConfirm}
+        title="Delete Transaction"
+        message="Are you sure you want to delete this transaction?"
+        onConfirm={() => {
+          setShowDeleteConfirm(false);
+          handleDelete();
+        }}
+        onCancel={() => setShowDeleteConfirm(false)}
+        variant="danger"
+      />
     </div>
   );
 }
