@@ -59,9 +59,9 @@ export async function updateTransaction(id: number, newTransaction: Transaction)
     }
 
     // 4. Update linked Cashbook entry if exists
-    const linkedCashbookEntry = await (db as any).cashbookEntries?.where('linkedTransactionId').equals(id).first();
+    const linkedCashbookEntry = await db.cashbookEntries.filter(entry => entry.linkedTransactionId === id).first();
     if (linkedCashbookEntry) {
-      const customer = await (db as any).cashbookCustomers?.get(linkedCashbookEntry.customerId);
+      const customer = await db.cashbookCustomers.get(linkedCashbookEntry.customerId);
       if (customer) {
         let newBalance = customer.balance;
         // Reverse old amount
@@ -76,8 +76,8 @@ export async function updateTransaction(id: number, newTransaction: Transaction)
         } else {
           newBalance += newTransaction.amount;
         }
-        await (db as any).cashbookEntries?.update(linkedCashbookEntry.id!, { amount: newTransaction.amount });
-        await (db as any).cashbookCustomers?.update(customer.id!, { balance: newBalance });
+        await db.cashbookEntries.update(linkedCashbookEntry.id!, { amount: newTransaction.amount });
+        await db.cashbookCustomers.update(customer.id!, { balance: newBalance });
       }
     }
   });
@@ -95,9 +95,9 @@ export async function deleteTransaction(id: number) {
     }
 
     // Update Cashbook if linked
-    const linkedCashbookEntry = await (db as any).cashbookEntries?.where('linkedTransactionId').equals(id).first();
+    const linkedCashbookEntry = await db.cashbookEntries.filter(entry => entry.linkedTransactionId === id).first();
     if (linkedCashbookEntry) {
-      const customer = await (db as any).cashbookCustomers?.get(linkedCashbookEntry.customerId);
+      const customer = await db.cashbookCustomers.get(linkedCashbookEntry.customerId);
       if (customer) {
         let newBalance = customer.balance;
         if (linkedCashbookEntry.type === 'gave') {
@@ -105,8 +105,8 @@ export async function deleteTransaction(id: number) {
         } else {
           newBalance -= transaction.amount;
         }
-        await (db as any).cashbookEntries?.delete(linkedCashbookEntry.id!);
-        await (db as any).cashbookCustomers?.update(customer.id!, { balance: newBalance });
+        await db.cashbookEntries.delete(linkedCashbookEntry.id!);
+        await db.cashbookCustomers.update(customer.id!, { balance: newBalance });
       }
     }
 

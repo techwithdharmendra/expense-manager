@@ -78,7 +78,7 @@ export default function CashbookCustomerDetail() {
         if (settings?.syncCashbookWithExpenses && accountId !== '') {
           // Find or create 'Cashbook' category
           const txType = entryType === 'took' ? 'income' : 'expense';
-          let cat = await db.categories.where({ name: 'Cashbook', type: txType }).first();
+          let cat = await db.categories.where('name').equals('Cashbook').filter(c => c.type === txType).first();
           if (!cat) {
             const catId = await db.categories.add({
               name: 'Cashbook',
