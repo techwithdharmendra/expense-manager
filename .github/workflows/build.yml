@@ -39,6 +39,10 @@ jobs:
           rm -rf android
           npx cap add android
           npx cap sync android
+          if [ -f build.gradle ]; then
+            cp build.gradle android/app/build.gradle
+            echo "Successfully applied custom root build.gradle"
+          fi
 
       - name: Make Gradle executable
         run: chmod +x android/gradlew
