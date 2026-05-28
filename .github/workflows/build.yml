@@ -35,11 +35,7 @@ jobs:
         run: npm run build
 
       - name: Sync Capacitor 
-        run: npx cap sync android 
-        
-      - name: Clean Gradle 
-        working-directory: ./android 
-        run: ./gradlew clean 
+        run: npx cap sync android
         
       - name: Make Gradle executable 
         run: chmod +x android/gradlew
