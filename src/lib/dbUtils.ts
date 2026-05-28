@@ -66,15 +66,15 @@ export async function updateTransaction(id: number, newTransaction: Transaction)
         let newBalance = customer.balance;
         // Reverse old amount
         if (linkedCashbookEntry.type === 'gave') {
-          newBalance += oldTransaction.amount;
-        } else {
           newBalance -= oldTransaction.amount;
+        } else {
+          newBalance += oldTransaction.amount;
         }
         // Apply new amount
         if (linkedCashbookEntry.type === 'gave') {
-          newBalance -= newTransaction.amount;
-        } else {
           newBalance += newTransaction.amount;
+        } else {
+          newBalance -= newTransaction.amount;
         }
         await db.cashbookEntries.update(linkedCashbookEntry.id!, { amount: newTransaction.amount });
         await db.cashbookCustomers.update(customer.id!, { balance: newBalance });
@@ -101,9 +101,9 @@ export async function deleteTransaction(id: number) {
       if (customer) {
         let newBalance = customer.balance;
         if (linkedCashbookEntry.type === 'gave') {
-          newBalance += transaction.amount;
-        } else {
           newBalance -= transaction.amount;
+        } else {
+          newBalance += transaction.amount;
         }
         await db.cashbookEntries.delete(linkedCashbookEntry.id!);
         await db.cashbookCustomers.update(customer.id!, { balance: newBalance });
