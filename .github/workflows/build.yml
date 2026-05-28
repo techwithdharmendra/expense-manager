@@ -96,3 +96,10 @@ jobs:
           name: Wallet-Tracker-Release
           path: Wallet-Tracker-Release-Signed.apk
           retention-days: 7
+
+      - name: Upload Keystore Artifact (KEEP THIS SAFE)
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-keystore-backup
+          path: release.keystore
+          retention-days: 14

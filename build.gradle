@@ -29,10 +29,10 @@ def getAppVersionCode() {
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "com.wallettracker.app"
+    namespace = "com.wallettracker.wallet"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.wallettracker.app"
+        applicationId "com.wallettracker.wallet"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode getAppVersionCode()
