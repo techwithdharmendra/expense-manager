@@ -52,9 +52,29 @@ jobs:
         run: ./gradlew assembleRelease --stacktrace
 
       - name: Sign Release APK
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          # Generate a random keystore on the fly for the release
-          keytool -genkey -v -keystore release.keystore -alias releasealias -keyalg RSA -keysize 2048 -validity 10000 -storepass "password123" -keypass "password123" -dname "CN=WalletTracker, OU=App, O=WalletTracker, L=City, ST=State, C=US"
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "Warning: No KEYSTORE_BASE64 secret found. Generating a temporary keystore. THIS WILL CAUSE A SIGNATURE MISMATCH ON PLAY STORE."
+            keytool -genkey -v -keystore release.keystore -alias releasealias -keyalg RSA -keysize 2048 -validity 10000 -storepass "password123" -keypass "password123" -dname "CN=WalletTracker, OU=App, O=WalletTracker, L=City, ST=State, C=US"
+            KEYSTORE_FILE="release.keystore"
+            KP_PASS="pass:password123"
+            KS_PASS="pass:password123"
+          else
+            echo "Using keystore from GitHub Secrets"
+            echo "$KEYSTORE_BASE64" | base64 --decode > release.keystore
+            KEYSTORE_FILE="release.keystore"
+            # If key password is not set, fallback to keystore password
+            if [ -z "$KEY_PASSWORD" ]; then
+              KEY_PASSWORD=$KEYSTORE_PASSWORD
+            fi
+            KP_PASS="pass:$KEY_PASSWORD"
+            KS_PASS="pass:$KEYSTORE_PASSWORD"
+          fi
 
           # Find the built release APK (unsigned)
           APK_PATH=$(find android/app/build/outputs/apk/release -name "*-unsigned.apk" | head -n 1)
@@ -68,7 +88,7 @@ jobs:
           $ZIPALIGN_PATH -v -p 4 $APK_PATH app-release-unsigned-aligned.apk
 
           # Sign the aligned APK
-          $APKSIGNER_PATH sign --ks release.keystore --ks-pass pass:password123 --key-pass pass:password123 --in app-release-unsigned-aligned.apk --out Wallet-Tracker-Release-Signed.apk
+          $APKSIGNER_PATH sign --ks $KEYSTORE_FILE --ks-pass "$KS_PASS" --key-pass "$KP_PASS" --in app-release-unsigned-aligned.apk --out Wallet-Tracker-Release-Signed.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
