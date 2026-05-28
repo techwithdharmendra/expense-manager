@@ -34,17 +34,14 @@ jobs:
       - name: Build Web Application
         run: npm run build
 
-      - name: Setup Android Project via Capacitor
-        run: |
-          rm -rf android
-          npx cap add android
-          npx cap sync android
-          if [ -f build.gradle ]; then
-            cp build.gradle android/app/build.gradle
-            echo "Successfully applied custom root build.gradle"
-          fi
-
-      - name: Make Gradle executable
+      - name: Sync Capacitor 
+        run: npx cap sync android 
+        
+      - name: Clean Gradle 
+        working-directory: android 
+        run: ./gradlew clean 
+        
+      - name: Make Gradle executable 
         run: chmod +x android/gradlew
 
       - name: Build Release APK
