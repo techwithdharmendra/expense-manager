@@ -38,7 +38,7 @@ jobs:
         run: npx cap sync android 
         
       - name: Clean Gradle 
-        working-directory: android 
+        working-directory: ./android 
         run: ./gradlew clean 
         
       - name: Make Gradle executable 
