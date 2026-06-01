@@ -11,19 +11,19 @@ def getAppVersion() {
     } catch (Exception e) {
         // fallback to standard
     }
-    return "1.1.0"
+    return "1.0.0"
 }
 
 def getAppVersionCode() {
     try {
         def runNo = System.getenv("GITHUB_RUN_NUMBER")
         if (runNo != null && runNo.isInteger()) {
-            return 100 + runNo.toInteger()
+            return runNo.toInteger()
         }
     } catch (Exception e) {
         // fallback to standard
     }
-    return 2
+    return 1
 }
 
 apply plugin: 'com.android.application'

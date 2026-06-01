@@ -64,10 +64,19 @@ jobs:
             KEYSTORE_FILE="release.keystore"
             KP_PASS="pass:password123"
             KS_PASS="pass:password123"
+            ALIAS_NAME="releasealias"
           else
             echo "Using keystore from GitHub Secrets"
             echo "$KEYSTORE_BASE64" | base64 --decode > release.keystore
             KEYSTORE_FILE="release.keystore"
+            
+            # Use KEY_ALIAS from secrets or fallback to a default if not set
+            if [ -z "$KEY_ALIAS" ]; then
+              ALIAS_NAME="releasealias"
+            else
+              ALIAS_NAME="$KEY_ALIAS"
+            fi
+
             # If key password is not set, fallback to keystore password
             if [ -z "$KEY_PASSWORD" ]; then
               KEY_PASSWORD=$KEYSTORE_PASSWORD
@@ -88,7 +97,7 @@ jobs:
           $ZIPALIGN_PATH -v -p 4 $APK_PATH app-release-unsigned-aligned.apk
 
           # Sign the aligned APK
-          $APKSIGNER_PATH sign --ks $KEYSTORE_FILE --ks-pass "$KS_PASS" --key-pass "$KP_PASS" --in app-release-unsigned-aligned.apk --out Wallet-Tracker-Release-Signed.apk
+          $APKSIGNER_PATH sign --ks $KEYSTORE_FILE --ks-key-alias "$ALIAS_NAME" --ks-pass "$KS_PASS" --key-pass "$KP_PASS" --in app-release-unsigned-aligned.apk --out Wallet-Tracker-Release-Signed.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4

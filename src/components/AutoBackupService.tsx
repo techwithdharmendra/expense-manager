@@ -85,7 +85,7 @@ export default function AutoBackupService() {
       db.categories.toArray(),
       db.budgets.toArray(),
       db.accounts.toArray(),
-      db.settings.toArray(),
+      db.settings.get(1),
       db.cashbookCustomers.toArray(),
       db.cashbookEntries.toArray()
     ]);

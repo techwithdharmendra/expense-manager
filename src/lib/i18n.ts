@@ -19,6 +19,7 @@ export const translations = {
     gujarati: 'Gujarati (ગુજરાતી)',
     
     // Dashboard
+    my: 'My',
     totalBalance: 'Total Balance',
     income: 'Income',
     expense: 'Expense',
@@ -199,6 +200,7 @@ export const translations = {
     gujarati: 'Gujarati (ગુજરાતી)',
     
     // Dashboard
+    my: 'मेरा',
     totalBalance: 'कुल शेष',
     income: 'आय',
     expense: 'व्यय',
@@ -373,6 +375,7 @@ export const translations = {
     gujarati: 'Gujarati (ગુજરાતી)',
     
     // Dashboard
+    my: 'મારું',
     totalBalance: 'કુલ સિલ્લક',
     income: 'આવક',
     expense: 'ખર્ચ',

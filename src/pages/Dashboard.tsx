@@ -208,7 +208,7 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between px-1">
         <div>
-          <p className="text-[9px] text-gray-400 font-bold uppercase tracking-[0.2em] mb-0.5">Dharmendra's</p>
+          <p className="text-[9px] text-gray-400 font-bold uppercase tracking-[0.2em] mb-0.5">{t('my', lang) || 'My'}</p>
           <h1 className="text-lg font-bold text-gray-900 tracking-tight leading-none">Wallet Tracker</h1>
         </div>
         <div className="flex items-center space-x-1.5">
