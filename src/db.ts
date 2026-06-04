@@ -28,6 +28,11 @@ export class ExpenseDB extends Dexie {
       transactions: '++id, title, amount, type, categoryId, accountId, date, isRecurring, [type+date], [accountId+date], [categoryId+date]',
       cashbookEntries: '++id, customerId, type, date, dueDate, isCleared, [customerId+isCleared]'
     });
+
+    // Add linkedTransactionId to cashbookEntries in version 6
+    this.version(6).stores({
+      cashbookEntries: '++id, customerId, type, date, dueDate, isCleared, [customerId+isCleared], linkedTransactionId'
+    });
   }
 }
 

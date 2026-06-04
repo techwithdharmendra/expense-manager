@@ -5,6 +5,7 @@ import { Wallet, Paperclip } from 'lucide-react';
 import { Transaction, Category, Account } from '../types';
 import { formatCurrency, cn, formatDate } from '../lib/utils';
 import { getIconByName } from '../lib/icons';
+import { db } from '../db';
 
 interface TransactionItemProps {
   key?: React.Key;
@@ -34,9 +35,14 @@ export default React.memo(function TransactionItem({
   return (
     <motion.div 
       layout
-      onClick={() => {
-        if (category?.name === 'Cashbook') {
-          navigate('/cashbook');
+      onClick={async () => {
+        if (category?.name === 'Cashbook' && transaction.id) {
+          const entry = await db.cashbookEntries.where('linkedTransactionId').equals(transaction.id).first();
+          if (entry) {
+            navigate(`/cashbook/${entry.customerId}`);
+          } else {
+            navigate('/cashbook');
+          }
         } else {
           navigate(`/edit/${transaction.id}`);
         }

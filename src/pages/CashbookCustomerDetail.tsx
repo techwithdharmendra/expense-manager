@@ -28,7 +28,16 @@ export default function CashbookCustomerDetail() {
   const [entryType, setEntryType] = useState<'gave' | 'took'>('gave');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  
+  // Use localized ISO string taking timezone into account
+  const initDate = () => {
+    const d = new Date();
+    const offset = d.getTimezoneOffset();
+    const local = new Date(d.getTime() - (offset * 60 * 1000));
+    return local.toISOString().split('T')[0];
+  };
+
+  const [date, setDate] = useState(initDate());
   const [dueDate, setDueDate] = useState('');
   const [accountId, setAccountId] = useState<number | ''>('');
 
@@ -94,8 +103,8 @@ export default function CashbookCustomerDetail() {
             amount: val,
             type: txType,
             categoryId: cat!.id!,
-            accountId: accountId,
-            date: new Date(date),
+            accountId: Number(accountId),
+            date: new Date(date + 'T00:00:00'),
             note: note.trim() || undefined
           });
 

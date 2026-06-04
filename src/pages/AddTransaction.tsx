@@ -142,9 +142,14 @@ export default function AddTransaction() {
           setAmount(t.amount.toString());
           setTitle(t.title);
           setCategoryId(t.categoryId);
-          setAccountId(t.accountId);
+          setAccountId(t.accountId || '');
           setToAccountId(t.toAccountId || '');
-          setDate(new Date(t.date).toISOString().split('T')[0]);
+          
+          const d = new Date(t.date);
+          const offset = d.getTimezoneOffset();
+          const localDate = new Date(d.getTime() - (offset * 60 * 1000));
+          setDate(localDate.toISOString().split('T')[0]);
+          
           setNote(t.note || '');
           setAttachment(t.attachment);
           if (t.attachment) {
@@ -169,15 +174,17 @@ export default function AddTransaction() {
   }, [id]);
 
   useEffect(() => {
-    if (accounts && !accountId && accounts.length > 0) {
-      setAccountId(accounts[0].id!);
+    if (!id) {
+      if (accounts && !accountId && accounts.length > 0) {
+        setAccountId(accounts[0].id!);
+      }
+      if (accounts && !toAccountId && accounts.length > 1) {
+        setToAccountId(accounts[1].id!);
+      } else if (accounts && !toAccountId && accounts.length > 0) {
+        setToAccountId(accounts[0].id!);
+      }
     }
-    if (accounts && !toAccountId && accounts.length > 1) {
-      setToAccountId(accounts[1].id!);
-    } else if (accounts && !toAccountId && accounts.length > 0) {
-      setToAccountId(accounts[0].id!);
-    }
-  }, [accounts]);
+  }, [accounts, id, accountId, toAccountId]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
