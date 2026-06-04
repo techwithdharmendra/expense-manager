@@ -20,6 +20,17 @@ export default function PinLock({ correctPin, onSuccess }: PinLockProps) {
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
 
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    if (error) {
+      timeoutId = setTimeout(() => {
+        setPin('');
+        setError(false);
+      }, 500);
+    }
+    return () => clearTimeout(timeoutId);
+  }, [error]);
+
   const handlePress = (num: string) => {
     if (pin.length < 4) {
       const newPin = pin + num;
@@ -29,10 +40,6 @@ export default function PinLock({ correctPin, onSuccess }: PinLockProps) {
           onSuccess();
         } else {
           setError(true);
-          setTimeout(() => {
-            setPin('');
-            setError(false);
-          }, 500);
         }
       }
     }

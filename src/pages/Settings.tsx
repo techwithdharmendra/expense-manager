@@ -107,8 +107,16 @@ export default function Settings() {
 
       if (Capacitor.isNativePlatform()) {
         try {
-          await saveToExpenseManagerDir(fileName, jsonData);
-          toast.success('Backup exported to ExpenseManager folder successfully');
+          const uri = await saveToExpenseManagerDir(fileName, jsonData);
+          if (uri) {
+            await Share.share({
+              title: 'Wallet Tracker Backup',
+              text: 'Here is my Wallet Tracker backup data.',
+              url: uri,
+              dialogTitle: 'Save or Share Backup'
+            });
+          }
+          toast.success('Backup exported successfully');
           return; 
         } catch (fileErr: any) {
           console.error('File write error:', fileErr);
@@ -156,8 +164,16 @@ export default function Settings() {
 
        if (Capacitor.isNativePlatform()) {
          try {
-           await saveToExpenseManagerDir(fileName, csv, true);
-           toast.success('CSV exported to ExpenseManager folder successfully');
+           const uri = await saveToExpenseManagerDir(fileName, csv, true);
+           if (uri) {
+             await Share.share({
+               title: 'Wallet Tracker CSV Export',
+               text: 'Here is my Wallet Tracker export.',
+               url: uri,
+               dialogTitle: 'Save or Share CSV'
+             });
+           }
+           toast.success('CSV exported successfully');
            return;
          } catch (nativeErr: any) {
            console.error('CSV Native Export Error:', nativeErr);
