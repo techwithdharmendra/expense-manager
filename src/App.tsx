@@ -177,8 +177,10 @@ export default function App() {
     if (settings !== undefined) {
       if (settings?.isDarkMode) {
         document.documentElement.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
       } else {
         document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
       }
     }
   }, [settings?.isDarkMode]);

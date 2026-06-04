@@ -260,7 +260,7 @@ export default function CashbookCustomerDetail() {
       {/* Net Balance Card */}
       <div className={cn(
         "rounded-2xl p-5 text-white text-center relative overflow-hidden shadow-lg mx-1.5",
-        customer.balance === 0 ? "bg-gray-800 shadow-gray-200" :
+        customer.balance === 0 ? "bg-slate-800 shadow-slate-200/20" :
         customer.balance > 0 ? "bg-rose-500 shadow-rose-200" : "bg-emerald-500 shadow-emerald-200"
       )}>
         <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-12 -mt-12 blur-2xl" />
@@ -393,7 +393,7 @@ export default function CashbookCustomerDetail() {
                initial={{ opacity: 0 }}
                animate={{ opacity: 1 }}
                exit={{ opacity: 0 }}
-               className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50"
+               className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
                onClick={() => setShowAddEntry(false)}
              />
              <motion.div 
@@ -515,7 +515,7 @@ export default function CashbookCustomerDetail() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50"
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
               onClick={() => setShowEditCustomer(false)}
             />
             <motion.div 

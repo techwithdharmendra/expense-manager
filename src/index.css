@@ -37,6 +37,7 @@
 }
 
 :root.dark {
+  color-scheme: dark;
   --color-gray-50: #111827; /* gray-900 */
   --color-gray-100: #1f2937; /* gray-800 */
   --color-gray-200: #374151; /* gray-700 */
@@ -48,11 +49,90 @@
   --color-gray-800: #f3f4f6; /* gray-100 */
   --color-gray-900: #f9fafb; /* gray-50 */
 
-  --color-slate-200: #1e293b;
-  --color-slate-100: #334155;
-  --color-indigo-50: #312e81; /* darker indigo wrapper */
-  --color-rose-50: #881337;
-  --color-emerald-50: #064e3b;
+  --color-slate-50: #0f172a;
+  --color-slate-100: #1e293b;
+  --color-slate-200: #334155;
+  --color-slate-300: #475569;
+
+  --color-zinc-50: #18181b;
+  --color-zinc-100: #27272a;
+  --color-zinc-200: #3f3f46;
+
+  --color-neutral-50: #171717;
+  --color-neutral-100: #262626;
+  --color-neutral-200: #404040;
+
+  --color-stone-50: #1c1917;
+  --color-stone-100: #292524;
+  --color-stone-200: #44403c;
+  
+  --color-red-50: #450a0a;
+  --color-red-100: #7f1d1d;
+  --color-red-200: #991b1b;
+
+  --color-orange-50: #431407;
+  --color-orange-100: #7c2d12;
+  --color-orange-200: #9a3412;
+  
+  --color-amber-50: #451a03;
+  --color-amber-100: #78350f;
+  --color-amber-200: #92400e;
+  
+  --color-yellow-50: #422006;
+  --color-yellow-100: #713f12;
+  --color-yellow-200: #854d0e;
+  
+  --color-lime-50: #1a2e05;
+  --color-lime-100: #365314;
+  --color-lime-200: #3f6212;
+
+  --color-green-50: #052e16;
+  --color-green-100: #14532d;
+  --color-green-200: #166534;
+
+  --color-emerald-50: #022c22;
+  --color-emerald-100: #064e3b;
+  --color-emerald-200: #065f46;
+
+  --color-teal-50: #042f2e;
+  --color-teal-100: #134e4a;
+  --color-teal-200: #115e59;
+
+  --color-cyan-50: #083344;
+  --color-cyan-100: #164e63;
+  --color-cyan-200: #155e75;
+
+  --color-sky-50: #082f49;
+  --color-sky-100: #0c4a6e;
+  --color-sky-200: #075985;
+
+  --color-blue-50: #172554;
+  --color-blue-100: #1e3a8a;
+  --color-blue-200: #1e40af;
+
+  --color-indigo-50: #1e1b4b;
+  --color-indigo-100: #312e81;
+  --color-indigo-200: #3730a3;
+
+  --color-violet-50: #2e1065;
+  --color-violet-100: #4c1d95;
+  --color-violet-200: #5b21b6;
+
+  --color-purple-50: #3b0764;
+  --color-purple-100: #581c87;
+  --color-purple-200: #6b21a8;
+
+  --color-fuchsia-50: #4a044e;
+  --color-fuchsia-100: #701a75;
+  --color-fuchsia-200: #86198f;
+
+  --color-pink-50: #500724;
+  --color-pink-100: #831843;
+  --color-pink-200: #9d174d;
+
+  --color-rose-50: #4c0519;
+  --color-rose-100: #881337;
+  --color-rose-200: #9f1239;
 }
 
 :root.dark .bg-white { 
@@ -118,8 +198,8 @@
 
 
 :root.dark body { background-color: #020617 !important; color: #f9fafb !important; }
-:root.dark .ring-white { --tw-ring-color: #020617 !important; }
-:root.dark .border-white { border-color: #020617 !important; }
+:root.dark .ring-white { --tw-ring-color: #0d1117 !important; }
+:root.dark .border-white { border-color: #0d1117 !important; }
 :root.dark text.recharts-text { fill: var(--color-gray-900) !important; }
 
 path:focus,

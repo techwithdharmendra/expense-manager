@@ -717,7 +717,7 @@ export default function Analytics() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedDetailedCategory(null)}
-              className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-40"
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
             />
             <motion.div
               initial={{ opacity: 0, y: '100%' }}
